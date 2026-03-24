@@ -40,8 +40,8 @@ class PromptBuilder:
         emotional_flow: Any,
         spatial_awareness: Any,
         mood_system: Any,
-        relevant_memories: List[Dict] = None,
-        intent_analysis: Dict
+        intent_analysis: Dict,
+        relevant_memories: List[Dict] = None
     ) -> str:
         """
         Bangun prompt dinamis dengan semua konteks realism 9.9
