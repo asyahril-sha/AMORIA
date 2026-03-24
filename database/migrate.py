@@ -277,3 +277,13 @@ async def run_migrations():
     except Exception as e:
         logger.error(f"❌ Migration failed: {e}")
         return False
+        
+# =========================
+# EXPORT FUNCTIONS
+# =========================
+
+async def migrate():
+    """Alias for compatibility"""
+    return await run_migrations()
+
+print("🔥 MIGRATE FUNCTION LOADED")
