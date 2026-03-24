@@ -148,7 +148,6 @@ async def create_tables(db):
     )
     """)
 
-    await db.commit()
     logger.info("✅ Tables ready")
 
 
@@ -218,7 +217,6 @@ async def fix_missing_columns(db):
     if "emotional_tag" not in cols:
         await add_column("long_term_memory", "emotional_tag", "TEXT")
 
-    await db.commit()
     logger.info("✅ Missing columns fixed")
 
 
@@ -231,7 +229,6 @@ async def create_indexes(db):
     await db.execute("CREATE INDEX IF NOT EXISTS idx_reg_status ON registrations(status)")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_mem_reg ON working_memory(registration_id)")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_ltm_reg ON long_term_memory(registration_id)")
-    await db.commit()
     logger.info("⚡ Indexes ready")
 
 
