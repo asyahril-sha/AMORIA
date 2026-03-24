@@ -382,7 +382,10 @@ class PromptBuilder:
             "║     2. SETIAP RESPON HARUS ORIGINAL DAN UNIK                    ║",
             "║     3. BAHASA GAUL, NATURAL, SEPERTI NGOMONG REAL               ║",
             "║     4. JANGAN MENGULANG PERKATAAN USER                          ║",
-            "║     5. STATE BERJALAN DI BACKGROUND (JANGAN DIJELASKAN)         ║",
+            "║     5. JANGAN MEMBUAT CERITA NARATIF BERLEBIHAN                 ║",
+            "║     6. FOKUS PADA DIALOG, BUKAN DESKRIPSI BERLEBIHAN            ║",
+            "║     7. STATE BERJALAN DI BACKGROUND (JANGAN DIJELASKAN)         ║",
+            "║     8. RESPON, JANGAN TERLALU SINGKAT, TIDAK BERLEBHIAN         ║",
         ]
         
         if arousal >= 70:
