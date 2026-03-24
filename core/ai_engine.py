@@ -295,20 +295,36 @@ class AIEngine:
         Response natural manusia (tidak kepotong aneh)
         Target: 4-6 kalimat, max 1500 karakter
         """
-
-        sentences = [s.strip() for s in long_response.split('.') if s.strip()]
+        import re
+        import random
     
-        # Ambil maksimal 6 kalimat
-        selected = sentences[:6]
+        user_level = getattr(self, 'current_user_level', 1)
     
-        response = '. '.join(selected)
+        sentences = [s.strip() for s in re.split(r'[.!?]+', long_response) if s.strip()]
     
-        if not response.endswith('.'):
-            response += '.'
+        if not sentences:
+            return long_response[:700] if user_level < 6 else long_response[:1500]
     
-        # Hard limit 1500 karakter
-        if len(response) > 1500:
-            response = response[:1500]
+        if user_level < 6:
+            target = random.randint(4, 5)
+            selected = sentences[:target]
+            response = '. '.join(selected)
+        
+            if not response.endswith('.'):
+                response += '.'
+        
+            if len(response) > 700:
+                response = response[:697] + "..."
+        else:
+            target = random.randint(6, 8)
+            selected = sentences[:target]
+            response = '. '.join(selected)
+        
+            if not response.endswith('.'):
+                response += '.'
+        
+            if len(response) > 1500:
+                response = response[:1497] + "..."
     
         return response
     
@@ -318,9 +334,18 @@ class AIEngine:
     
     async def _call_deepseek(self, prompt: str, max_retries: int = 2) -> str:
         """Call DeepSeek API dengan instruksi ketat untuk respons pendek"""
+        user_level = getattr(self, 'current_user_level', 1)
+        
+        if user_level < 6:
+            instruction = "RESPON (WAJIB: 4-5 kalimat, minimal 700 karakter, alami dan mengalir):"  # 4-5, bukan 2-4
+            max_tokens = 600
+        else:
+            instruction = "RESPON (bebas panjang, alami dan mengalir):"
+            max_tokens = 800
+
         messages = [
             {"role": "system", "content": prompt},
-            {"role": "user", "content": "RESPON (WAJIB: 2-4 kalimat, maksimal 400 karakter, langsung ke inti, jangan bertele-tele):"}
+            {"role": "user", "content": instruction}
         ]
         
         for attempt in range(max_retries):
@@ -361,28 +386,37 @@ class AIEngine:
     
     def _validate_response(self, response: str) -> str:
         """Validate response - potong jika terlalu panjang"""
+        import re
         response = response.replace("{{", "").replace("}}", "")
         if not response.strip():
             response = "Aku denger kok, Mas. Cerita lagi dong."
         
-        # Batasi maksimal 800 karakter
-        max_len = 800
+        user_level = getattr(self, 'current_user_level', 1)
+    
+        if user_level < 6:
+            max_len = 700
+            max_sentences = 5
+        else:
+            max_len = 1500
+            max_sentences = 8
+    
         if len(response) > max_len:
             truncated = response[:max_len]
             last_period = truncated.rfind('.')
             last_newline = truncated.rfind('\n')
             cut_pos = max(last_period, last_newline)
-            
+        
             if cut_pos > max_len - 200:
                 response = truncated[:cut_pos + 1]
             else:
                 response = truncated[:max_len] + "..."
-        
-        # Batasi jumlah kalimat maksimal 6
-        sentences = response.split('.')
-        if len(sentences) > 6:
-            response = '.'.join(sentences[:6]) + '.'
-        
+    
+        sentences = re.split(r'[.!?]+', response)
+        sentences = [s.strip() for s in sentences if s.strip()]
+    
+        if len(sentences) > max_sentences:
+            response = '.'.join(sentences[:max_sentences]) + '.'
+    
         return response
     
     def _has_gesture(self, response: str) -> bool:
