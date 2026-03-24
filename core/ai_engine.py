@@ -773,13 +773,14 @@ Sixth sense:
         return random.choice(fallbacks)
     
     def _get_situasi(self, state) -> Dict:
-        """Get situation context for emotional flow"""
         if not state:
             return {}
-        
+
         return {
             'kakak_ada': state.family_status.value == 'ada' if state.family_status else True,
-            'di_dalam_kamar': state.location_bot == 'kamar' if state.location_bot else False
+            'kakak_pergi': state.family_status.value == 'tidak_ada' if state.family_status else False,
+            'lokasi_kakak': state.family_location.value if state.family_location else 'tidak diketahui',
+            'di_rumah': state.location_bot in ['kamar', 'ruang tamu', 'dapur']
         }
     
     def get_stats(self) -> Dict:
