@@ -3,7 +3,8 @@
 """
 =============================================================================
 AMORIA - Virtual Human dengan Jiwa
-Database Repository
+Database Repository - Complete with all methods
+Target Realism 9.9/10
 =============================================================================
 """
 
@@ -18,7 +19,7 @@ from .models import (
     Registration, RegistrationStatus, CharacterRole,
     WorkingMemoryItem, LongTermMemoryItem, MemoryType,
     StateTracker, ClothingState, MoodType,
-    USER_PHYSICAL_TEMPLATES
+    USER_PHYSICAL_TEMPLATES, Backup, BackupType, BackupStatus
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 class Repository:
     """
-    Repository untuk semua operasi database AMORIA
+    Repository untuk semua operasi database AMORIA 9.9
     """
     
     def __init__(self):
@@ -43,15 +44,7 @@ class Repository:
     # =========================================================================
     
     async def get_next_sequence(self, role: CharacterRole) -> int:
-        """
-        Dapatkan nomor urut berikutnya untuk role tertentu
-        
-        Args:
-            role: Role karakter
-        
-        Returns:
-            Nomor urut berikutnya (1, 2, 3, ...)
-        """
+        """Dapatkan nomor urut berikutnya untuk role tertentu"""
         db = await self._get_db()
         
         result = await db.fetch_one(
@@ -64,15 +57,7 @@ class Repository:
         return 1
     
     async def create_registration(self, registration: Registration) -> str:
-        """
-        Buat registrasi baru
-        
-        Args:
-            registration: Registration object
-        
-        Returns:
-            registration_id
-        """
+        """Buat registrasi baru"""
         db = await self._get_db()
         data = registration.to_dict()
         
@@ -87,8 +72,11 @@ class Repository:
                 stamina_bot, stamina_user,
                 in_intimacy_cycle, intimacy_cycle_count,
                 last_climax_time, cooldown_until,
+                weighted_memory_score, weighted_memory_data, emotional_bias,
+                secondary_emotion, secondary_arousal, secondary_emotion_reason,
+                physical_sensation, physical_hunger, physical_thirst, physical_temperature,
                 metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data['id'], data['role'], data['sequence'], data['status'],
@@ -102,6 +90,12 @@ class Repository:
                 data['total_climax_user'], data['stamina_bot'], data['stamina_user'],
                 data['in_intimacy_cycle'], data['intimacy_cycle_count'],
                 data['last_climax_time'], data['cooldown_until'],
+                data['weighted_memory_score'], data['weighted_memory_data'],
+                data['emotional_bias'],
+                data['secondary_emotion'], data['secondary_arousal'],
+                data['secondary_emotion_reason'],
+                data['physical_sensation'], data['physical_hunger'],
+                data['physical_thirst'], data['physical_temperature'],
                 data['metadata']
             )
         )
@@ -110,15 +104,7 @@ class Repository:
         return registration.id
     
     async def get_registration(self, registration_id: str) -> Optional[Registration]:
-        """
-        Dapatkan registrasi berdasarkan ID
-        
-        Args:
-            registration_id: ID registrasi (contoh: IPAR-001)
-        
-        Returns:
-            Registration object atau None
-        """
+        """Dapatkan registrasi berdasarkan ID"""
         db = await self._get_db()
         
         result = await db.fetch_one(
@@ -129,52 +115,10 @@ class Repository:
         if not result:
             return None
         
-        return Registration(
-            id=result['id'],
-            role=CharacterRole(result['role']),
-            sequence=result['sequence'],
-            status=RegistrationStatus(result['status']),
-            created_at=result['created_at'],
-            last_updated=result['last_updated'],
-            bot_name=result['bot_name'],
-            bot_age=result['bot_age'],
-            bot_height=result['bot_height'],
-            bot_weight=result['bot_weight'],
-            bot_chest=result['bot_chest'],
-            bot_hijab=bool(result['bot_hijab']),
-            user_name=result['user_name'],
-            user_status=result['user_status'],
-            user_age=result['user_age'],
-            user_height=result['user_height'],
-            user_weight=result['user_weight'],
-            user_penis=result['user_penis'],
-            user_artist_ref=result['user_artist_ref'],
-            level=result['level'],
-            total_chats=result['total_chats'],
-            total_climax_bot=result['total_climax_bot'],
-            total_climax_user=result['total_climax_user'],
-            stamina_bot=result['stamina_bot'],
-            stamina_user=result['stamina_user'],
-            in_intimacy_cycle=bool(result['in_intimacy_cycle']),
-            intimacy_cycle_count=result['intimacy_cycle_count'],
-            last_climax_time=result['last_climax_time'],
-            cooldown_until=result['cooldown_until'],
-            metadata=json.loads(result['metadata']) if result['metadata'] else {}
-        )
+        return Registration.from_dict(dict(result))
     
     async def get_user_registrations(self, user_id: int, role: Optional[CharacterRole] = None) -> List[Registration]:
-        """
-        Dapatkan semua registrasi untuk user (admin)
-        
-        Args:
-            user_id: ID user
-            role: Filter role (opsional)
-        
-        Returns:
-            List registrasi
-        """
-        # Untuk admin, semua registrasi adalah miliknya
-        # Karena admin adalah satu-satunya user
+        """Dapatkan semua registrasi untuk user"""
         db = await self._get_db()
         
         if role:
@@ -189,38 +133,7 @@ class Repository:
         
         registrations = []
         for row in results:
-            registrations.append(Registration(
-                id=row['id'],
-                role=CharacterRole(row['role']),
-                sequence=row['sequence'],
-                status=RegistrationStatus(row['status']),
-                created_at=row['created_at'],
-                last_updated=row['last_updated'],
-                bot_name=row['bot_name'],
-                bot_age=row['bot_age'],
-                bot_height=row['bot_height'],
-                bot_weight=row['bot_weight'],
-                bot_chest=row['bot_chest'],
-                bot_hijab=bool(row['bot_hijab']),
-                user_name=row['user_name'],
-                user_status=row['user_status'],
-                user_age=row['user_age'],
-                user_height=row['user_height'],
-                user_weight=row['user_weight'],
-                user_penis=row['user_penis'],
-                user_artist_ref=row['user_artist_ref'],
-                level=row['level'],
-                total_chats=row['total_chats'],
-                total_climax_bot=row['total_climax_bot'],
-                total_climax_user=row['total_climax_user'],
-                stamina_bot=row['stamina_bot'],
-                stamina_user=row['stamina_user'],
-                in_intimacy_cycle=bool(row['in_intimacy_cycle']),
-                intimacy_cycle_count=row['intimacy_cycle_count'],
-                last_climax_time=row['last_climax_time'],
-                cooldown_until=row['cooldown_until'],
-                metadata=json.loads(row['metadata']) if row['metadata'] else {}
-            ))
+            registrations.append(Registration.from_dict(dict(row)))
         
         return registrations
     
@@ -239,6 +152,9 @@ class Repository:
                 stamina_bot = ?, stamina_user = ?,
                 in_intimacy_cycle = ?, intimacy_cycle_count = ?,
                 last_climax_time = ?, cooldown_until = ?,
+                weighted_memory_score = ?, weighted_memory_data = ?, emotional_bias = ?,
+                secondary_emotion = ?, secondary_arousal = ?, secondary_emotion_reason = ?,
+                physical_sensation = ?, physical_hunger = ?, physical_thirst = ?, physical_temperature = ?,
                 metadata = ?
             WHERE id = ?
             """,
@@ -248,6 +164,12 @@ class Repository:
                 data['total_climax_user'], data['stamina_bot'], data['stamina_user'],
                 data['in_intimacy_cycle'], data['intimacy_cycle_count'],
                 data['last_climax_time'], data['cooldown_until'],
+                data['weighted_memory_score'], data['weighted_memory_data'],
+                data['emotional_bias'],
+                data['secondary_emotion'], data['secondary_arousal'],
+                data['secondary_emotion_reason'],
+                data['physical_sensation'], data['physical_hunger'],
+                data['physical_thirst'], data['physical_temperature'],
                 data['metadata'], registration.id
             )
         )
@@ -271,7 +193,7 @@ class Repository:
         logger.info(f"💔 Ended registration: {registration_id}")
     
     async def delete_registration(self, registration_id: str):
-        """Hapus registrasi permanen (cascade akan menghapus semua terkait)"""
+        """Hapus registrasi permanen"""
         db = await self._get_db()
         await db.execute("DELETE FROM registrations WHERE id = ?", (registration_id,))
         logger.info(f"🗑️ Deleted registration: {registration_id}")
@@ -299,16 +221,7 @@ class Repository:
         )
     
     async def get_working_memory(self, registration_id: str, limit: int = 1000) -> List[Dict]:
-        """
-        Dapatkan working memory (chat terakhir)
-        
-        Args:
-            registration_id: ID registrasi
-            limit: Jumlah chat (default 1000)
-        
-        Returns:
-            List chat dengan konteks
-        """
+        """Dapatkan working memory (chat terakhir)"""
         db = await self._get_db()
         
         results = await db.fetch_all(
@@ -320,7 +233,6 @@ class Repository:
             (registration_id, limit)
         )
         
-        # Balik urutan agar kronologis
         results.reverse()
         
         memories = []
@@ -330,6 +242,7 @@ class Repository:
                 'timestamp': row['timestamp'],
                 'user': row['user_message'],
                 'bot': row['bot_response'],
+                'importance': row.get('importance', 0.3),
                 'context': json.loads(row['context']) if row['context'] else {}
             })
         
@@ -350,7 +263,6 @@ class Repository:
         """Hapus working memory lama, sisakan keep terakhir"""
         db = await self._get_db()
         
-        # Dapatkan chat_index minimal yang harus dipertahankan
         result = await db.fetch_one(
             """
             SELECT MIN(chat_index) as min_keep FROM (
@@ -372,28 +284,36 @@ class Repository:
     # LONG TERM MEMORY OPERATIONS
     # =========================================================================
     
-    async def add_long_term_memory(self, item: LongTermMemoryItem):
+    async def add_long_term_memory(
+        self,
+        registration_id: str,
+        memory_type: str,
+        content: str,
+        importance: float = 0.5,
+        status: Optional[str] = None,
+        emotional_tag: Optional[str] = None,
+        metadata: Optional[Dict] = None
+    ):
         """Tambah item ke long-term memory"""
         db = await self._get_db()
-        data = item.to_dict()
         
         await db.execute(
             """
             INSERT INTO long_term_memory
-            (registration_id, memory_type, content, importance, timestamp, metadata)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (registration_id, memory_type, content, importance, timestamp, status, emotional_tag, metadata)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                data['registration_id'], data['memory_type'],
-                data['content'], data['importance'], data['timestamp'],
-                data['metadata']
+                registration_id, memory_type, content, importance,
+                time.time(), status, emotional_tag,
+                json.dumps(metadata or {})
             )
         )
     
     async def get_long_term_memory(
         self,
         registration_id: str,
-        memory_type: Optional[MemoryType] = None,
+        memory_type: Optional[str] = None,
         limit: int = 100
     ) -> List[Dict]:
         """Dapatkan long-term memory"""
@@ -406,7 +326,7 @@ class Repository:
                 WHERE registration_id = ? AND memory_type = ?
                 ORDER BY importance DESC, timestamp DESC LIMIT ?
                 """,
-                (registration_id, memory_type.value, limit)
+                (registration_id, memory_type, limit)
             )
         else:
             results = await db.fetch_all(
@@ -426,6 +346,8 @@ class Repository:
                 'content': row['content'],
                 'importance': row['importance'],
                 'timestamp': row['timestamp'],
+                'status': row['status'],
+                'emotional_tag': row['emotional_tag'],
                 'metadata': json.loads(row['metadata']) if row['metadata'] else {}
             })
         
@@ -440,7 +362,6 @@ class Repository:
         db = await self._get_db()
         data = state.to_dict()
         
-        # Cek apakah sudah ada
         existing = await db.fetch_one(
             "SELECT registration_id FROM state_tracker WHERE registration_id = ?",
             (state.registration_id,)
@@ -454,11 +375,13 @@ class Repository:
                 UPDATE state_tracker SET
                     location_bot = ?, location_user = ?, position_bot = ?,
                     position_user = ?, position_relative = ?,
-                    clothing_bot_outer = ?, clothing_bot_inner_top = ?,
-                    clothing_bot_inner_bottom = ?, clothing_user_outer = ?,
+                    clothing_bot_outer = ?, clothing_bot_outer_bottom = ?,
+                    clothing_bot_inner_top = ?, clothing_bot_inner_bottom = ?,
+                    clothing_user_outer = ?, clothing_user_outer_bottom = ?,
                     clothing_user_inner_bottom = ?, clothing_history = ?,
                     emotion_bot = ?, arousal_bot = ?, mood_bot = ?,
                     emotion_user = ?, arousal_user = ?,
+                    secondary_emotion = ?, secondary_arousal = ?,
                     family_status = ?, family_location = ?, family_activity = ?,
                     family_estimate_return = ?,
                     activity_bot = ?, activity_user = ?,
@@ -470,11 +393,13 @@ class Repository:
                     data['location_bot'], data['location_user'],
                     data['position_bot'], data['position_user'],
                     data['position_relative'],
-                    data['clothing_bot_outer'], data['clothing_bot_inner_top'],
-                    data['clothing_bot_inner_bottom'], data['clothing_user_outer'],
+                    data['clothing_bot_outer'], data['clothing_bot_outer_bottom'],
+                    data['clothing_bot_inner_top'], data['clothing_bot_inner_bottom'],
+                    data['clothing_user_outer'], data['clothing_user_outer_bottom'],
                     data['clothing_user_inner_bottom'], data['clothing_history'],
                     data['emotion_bot'], data['arousal_bot'], data['mood_bot'],
                     data['emotion_user'], data['arousal_user'],
+                    data['secondary_emotion'], data['secondary_arousal'],
                     data['family_status'], data['family_location'],
                     data['family_activity'], data['family_estimate_return'],
                     data['activity_bot'], data['activity_user'],
@@ -488,23 +413,27 @@ class Repository:
                 INSERT INTO state_tracker (
                     registration_id, location_bot, location_user, position_bot,
                     position_user, position_relative, clothing_bot_outer,
-                    clothing_bot_inner_top, clothing_bot_inner_bottom,
-                    clothing_user_outer, clothing_user_inner_bottom,
+                    clothing_bot_outer_bottom, clothing_bot_inner_top,
+                    clothing_bot_inner_bottom, clothing_user_outer,
+                    clothing_user_outer_bottom, clothing_user_inner_bottom,
                     clothing_history, emotion_bot, arousal_bot, mood_bot,
-                    emotion_user, arousal_user, family_status, family_location,
-                    family_activity, family_estimate_return, activity_bot,
-                    activity_user, current_time, time_override_history, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    emotion_user, arousal_user, secondary_emotion, secondary_arousal,
+                    family_status, family_location, family_activity,
+                    family_estimate_return, activity_bot, activity_user,
+                    current_time, time_override_history, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     state.registration_id, data['location_bot'],
                     data['location_user'], data['position_bot'],
                     data['position_user'], data['position_relative'],
-                    data['clothing_bot_outer'], data['clothing_bot_inner_top'],
-                    data['clothing_bot_inner_bottom'], data['clothing_user_outer'],
+                    data['clothing_bot_outer'], data['clothing_bot_outer_bottom'],
+                    data['clothing_bot_inner_top'], data['clothing_bot_inner_bottom'],
+                    data['clothing_user_outer'], data['clothing_user_outer_bottom'],
                     data['clothing_user_inner_bottom'], data['clothing_history'],
                     data['emotion_bot'], data['arousal_bot'], data['mood_bot'],
                     data['emotion_user'], data['arousal_user'],
+                    data['secondary_emotion'], data['secondary_arousal'],
                     data['family_status'], data['family_location'],
                     data['family_activity'], data['family_estimate_return'],
                     data['activity_bot'], data['activity_user'],
@@ -525,115 +454,77 @@ class Repository:
         if not result:
             return None
         
-        # Parse clothing history
-        clothing_history = []
-        if result['clothing_history']:
-            clothing_history = json.loads(result['clothing_history'])
-        
-        # Parse time override history
-        time_override_history = []
-        if result['time_override_history']:
-            time_override_history = json.loads(result['time_override_history'])
-        
-        # Parse family status
-        family_status = None
-        if result['family_status']:
-            from .models import FamilyStatus
-            family_status = FamilyStatus(result['family_status'])
-        
-        family_location = None
-        if result['family_location']:
-            from .models import FamilyLocation
-            family_location = FamilyLocation(result['family_location'])
-        
-        # Create ClothingState
-        clothing_state = ClothingState(
-            bot_outer_top=result['clothing_bot_outer'],
-            bot_inner_top=result['clothing_bot_inner_top'],
-            bot_inner_bottom=result['clothing_bot_inner_bottom'],
-            user_outer_top=result['clothing_user_outer'],
-            user_inner_bottom=result['clothing_user_inner_bottom'],
-            history=clothing_history
-        )
-        
-        # Set flags from clothing
-        clothing_state.bot_outer_top_on = result['clothing_bot_outer'] is not None
-        clothing_state.bot_inner_top_on = result['clothing_bot_inner_top'] is not None
-        clothing_state.bot_inner_bottom_on = result['clothing_bot_inner_bottom'] is not None
-        clothing_state.user_outer_top_on = result['clothing_user_outer'] is not None
-        clothing_state.user_inner_bottom_on = result['clothing_user_inner_bottom'] is not None
-        
-        return StateTracker(
-            registration_id=registration_id,
-            location_bot=result['location_bot'],
-            location_user=result['location_user'],
-            position_bot=result['position_bot'],
-            position_user=result['position_user'],
-            position_relative=result['position_relative'],
-            clothing_state=clothing_state,
-            emotion_bot=result['emotion_bot'],
-            arousal_bot=result['arousal_bot'],
-            mood_bot=MoodType(result['mood_bot']) if result['mood_bot'] else MoodType.NORMAL,
-            emotion_user=result['emotion_user'],
-            arousal_user=result['arousal_user'],
-            family_status=family_status,
-            family_location=family_location,
-            family_activity=result['family_activity'],
-            family_estimate_return=result['family_estimate_return'],
-            activity_bot=result['activity_bot'],
-            activity_user=result['activity_user'],
-            current_time=result['current_time'],
-            time_override_history=time_override_history,
-            updated_at=result['updated_at']
-        )
+        return StateTracker.from_dict(dict(result))
     
     # =========================================================================
-    # UTILITY METHODS
+    # BACKUP OPERATIONS
     # =========================================================================
     
-    async def get_registration_score(self, registration: Registration) -> float:
-        """
-        Hitung score registrasi untuk ranking
+    async def add_backup(self, backup: Backup) -> int:
+        """Tambah record backup"""
+        db = await self._get_db()
+        data = backup.to_dict()
         
-        Formula: (Total Chat × 0.3) + (Level × 0.4) + (Total Climax × 0.3)
-        """
-        total_chat_score = min(100, registration.total_chats) / 100
-        level_score = registration.level / 12
-        climax_score = min(50, registration.total_climax_bot + registration.total_climax_user) / 50
-        
-        score = (total_chat_score * 0.3) + (level_score * 0.4) + (climax_score * 0.3)
-        return score * 100
-    
-    async def get_top_registrations(self, role: CharacterRole, limit: int = 10) -> List[Registration]:
-        """Dapatkan top registrations berdasarkan score"""
-        registrations = await self.get_user_registrations(0, role)  # user_id tidak dipakai
-        
-        # Hitung score dan sort
-        scored = []
-        for reg in registrations:
-            score = await self.get_registration_score(reg)
-            scored.append((reg, score))
-        
-        scored.sort(key=lambda x: x[1], reverse=True)
-        
-        return [reg for reg, _ in scored[:limit]]
-    
-    async def cleanup_old_registrations(self):
-        """Bersihkan registrasi lama (simpan top 10 per role)"""
-        for role in CharacterRole:
-            top = await self.get_top_registrations(role, 10)
-            top_ids = [r.id for r in top]
-            
-            db = await self._get_db()
-            await db.execute(
-                """
-                DELETE FROM registrations
-                WHERE role = ? AND status != 'active' AND id NOT IN ({})
-                """.format(','.join('?' * len(top_ids))),
-                [role.value] + top_ids
+        result = await db.execute(
+            """
+            INSERT INTO backups (filename, size, created_at, type, status, metadata)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data['filename'], data['size'], data['created_at'],
+                data['type'], data['status'], data['metadata']
             )
+        )
         
-        logger.info("🧹 Cleaned up old registrations")
+        return result.lastrowid
+    
+    async def get_backups(self, limit: int = 10) -> List[Backup]:
+        """Dapatkan daftar backup terbaru"""
+        db = await self._get_db()
+        
+        results = await db.fetch_all(
+            "SELECT * FROM backups ORDER BY created_at DESC LIMIT ?",
+            (limit,)
+        )
+        
+        backups = []
+        for row in results:
+            backups.append(Backup.from_dict(dict(row)))
+        
+        return backups
+    
+    async def get_stats(self) -> Dict:
+        """Dapatkan statistik database"""
+        db = await self._get_db()
+        
+        stats = {}
+        
+        tables = ['registrations', 'working_memory', 'long_term_memory', 'state_tracker', 'backups']
+        
+        for table in tables:
+            try:
+                result = await db.fetch_one(f"SELECT COUNT(*) as count FROM {table}")
+                stats[f"{table}_count"] = result['count'] if result else 0
+            except:
+                stats[f"{table}_count"] = 0
+        
+        active = await db.fetch_one(
+            "SELECT COUNT(*) as count FROM registrations WHERE status = 'active'"
+        )
+        stats['active_registrations'] = active['count'] if active else 0
+        
+        total_chats = await db.fetch_one(
+            "SELECT SUM(total_chats) as total FROM registrations"
+        )
+        stats['total_chats_all_time'] = total_chats['total'] if total_chats and total_chats['total'] else 0
+        
+        db_path = settings.database.path
+        if db_path.exists():
+            stats['db_size_mb'] = round(db_path.stat().st_size / (1024 * 1024), 2)
+        else:
+            stats['db_size_mb'] = 0
+        
+        return stats
 
 
 __all__ = ['Repository']
