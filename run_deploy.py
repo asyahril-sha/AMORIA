@@ -42,7 +42,6 @@ def check_environment() -> bool:
     errors = []
     warnings = []
     
-    # Check Railway environment
     railway_env = os.getenv('RAILWAY_ENVIRONMENT')
     railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN')
     railway_url = os.getenv('RAILWAY_STATIC_URL')
@@ -51,12 +50,10 @@ def check_environment() -> bool:
     log_info(f"📡 Railway Domain: {railway_domain or 'Not set'}")
     log_info(f"📡 Railway URL: {railway_url or 'Not set'}")
     
-    # Check .env file
     env_path = Path(".env")
     if not env_path.exists():
         log_warning("⚠️ .env file not found! Using environment variables.")
     
-    # Check API keys
     try:
         if not settings.deepseek_api_key or settings.deepseek_api_key == "your_deepseek_api_key_here":
             errors.append("DeepSeek API key not configured")
@@ -80,7 +77,6 @@ def check_environment() -> bool:
         errors.append(f"Failed to load config: {e}")
         error_logger.log_error(e, {'stage': 'config_load'})
     
-    # Create directories
     required_dirs = [
         'data', 'data/logs', 'data/backups', 
         'data/sessions', 'data/vector_db', 'data/memory'
@@ -133,45 +129,25 @@ def run_migration() -> bool:
 def start_bot() -> bool:
     """Start the bot with error handling"""
     log_info("\n" + "=" * 60)
-    log_info("🚀 STARTING AMORIA ON RAILWAY (POLLING MODE)")
+    log_info("🚀 STARTING AMORIA ON RAILWAY")
     log_info("=" * 60)
     
     try:
+        from main import main
         import asyncio
-        from main import AmoriaBot
         
-        async def run():
-            bot = AmoriaBot()
-            
-            # Initialize database
-            await bot.init_database()
-            
-            # Initialize application
-            await bot.init_application()
-            
-            # FORCE POLLING MODE - skip webhook
-            await bot.application.bot.delete_webhook(drop_pending_updates=True)
-            log_info("✅ Webhook deleted, using polling mode")
-            
-            # Start polling
-            await bot.application.initialize()
-            await bot.application.start()
-            await bot.application.updater.start_polling()
-            
-            log_info("✅ Bot started in POLLING MODE!")
-            log_info("💜 AMORIA 9.9 is running!")
-            
-            # Keep running
-            while True:
-                await asyncio.sleep(1)
+        log_info("📡 Calling main() function...")
+        asyncio.run(main())
+        return True
         
-        asyncio.run(run())
-        return True
-    except KeyboardInterrupt:
-        log_info("\n👋 Bot stopped")
-        return True
+    except ImportError as e:
+        log_error(f"❌ ImportError: {e}")
+        log_error(traceback.format_exc())
+        return False
+        
     except Exception as e:
         error_logger.log_error(e, {'stage': 'bot_start'}, severity="CRITICAL")
+        log_error(traceback.format_exc())
         return False
 
 
@@ -210,8 +186,10 @@ def main():
     success = start_bot()
     
     if not success:
-        log_error("Bot failed to start")
+        log_error("❌ Bot failed to start!")
         sys.exit(1)
+    
+    log_info("✅ Bot started successfully!")
 
 
 if __name__ == "__main__":
