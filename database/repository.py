@@ -354,6 +354,9 @@ class Repository:
         data = state.to_dict()
         
         state.updated_at = time.time()
+
+        if hasattr(state, '_time_system') and state._time_system:
+            data['time_data'] = json.dumps(state._time_system.to_dict())
         
         existing = await db.fetch_one(
             "SELECT registration_id FROM state_tracker WHERE registration_id = ?",
@@ -368,7 +371,7 @@ class Repository:
                 'clothing_bot_inner_bottom', 'clothing_user_outer', 'clothing_user_outer_bottom',
                 'clothing_user_inner_bottom', 'clothing_history',
                 'family_status', 'family_location', 'family_activity', 'family_estimate_return',
-                'activity_bot', 'activity_user', 'current_time', 'time_override_history',
+                'activity_bot', 'activity_user', 'current_time', 'time_override_history', 'time_data',
                 'updated_at'
             ]
             
@@ -389,7 +392,7 @@ class Repository:
                 'clothing_user_outer_bottom', 'clothing_user_inner_bottom',
                 'clothing_history', 'family_status', 'family_location',
                 'family_activity', 'family_estimate_return', 'activity_bot',
-                'activity_user', 'current_time', 'time_override_history', 'updated_at'
+                'activity_user', 'current_time', 'time_override_history', 'time_data', 'updated_at'
             ]
             
             values = [data.get(col) for col in columns]
@@ -413,6 +416,10 @@ class Repository:
         
         if not result:
             return None
+
+        if data.get('time_data') and isinstance(data['time_data'], str):
+            import json
+            data['time_data'] = json.loads(data['time_data'])
         
         return StateTracker.from_dict(dict(result))
     
