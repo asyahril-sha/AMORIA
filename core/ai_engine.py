@@ -238,7 +238,7 @@ class AIEngine:
                     response = f"{response}\n\n🔮 {sixth_sense}"
             
             # ===== FORCE SHORT RESPONSE =====
-            if len(response) > 800:
+            if len(response) > 1500:
                 response = self._force_short_response(response)
             
         except Exception as e:
@@ -272,29 +272,25 @@ class AIEngine:
     
     def _force_short_response(self, long_response: str) -> str:
         """
-        Paksa respons menjadi pendek (maksimal 500 karakter)
-        
-        Args:
-            long_response: Respons panjang dari AI
-        
-        Returns:
-            Respons pendek
+        Response natural manusia (tidak kepotong aneh)
+        Target: 4-6 kalimat, max 1500 karakter
         """
-        # Ambil kalimat pertama saja
-        sentences = long_response.split('.')
-        if sentences:
-            first_sentence = sentences[0].strip()
-            # Hapus gesture yang terlalu panjang
-            if first_sentence.startswith('*') and len(first_sentence) > 100:
-                parts = first_sentence.split('*')
-                if len(parts) > 1:
-                    first_sentence = parts[1].strip()
-            
-            if len(first_sentence) < 200 and first_sentence:
-                return first_sentence + "."
-        
-        # Atau ambil 150 karakter pertama
-        return long_response[:150] + "..."
+
+        sentences = [s.strip() for s in long_response.split('.') if s.strip()]
+    
+        # Ambil maksimal 6 kalimat
+        selected = sentences[:6]
+    
+        response = '. '.join(selected)
+    
+        if not response.endswith('.'):
+            response += '.'
+    
+        # Hard limit 1500 karakter
+        if len(response) > 1500:
+            response = response[:1500]
+    
+        return response
     
     # =========================================================================
     # DEEPSEEK API CALL
