@@ -3,8 +3,7 @@
 """
 =============================================================================
 AMORIA - Virtual Human dengan Jiwa
-PTB Application Factory - All Handlers & Callbacks
-Target Realism 9.9/10
+PTB Application Factory
 =============================================================================
 """
 
@@ -68,7 +67,7 @@ from command import (
     recover_command,
     debug_command,
 )
-from command.start import SELECTING_ROLE, role_callback, agree_18_callback, help_callback, continue_current_callback, new_character_callback, cancel_callback as start_cancel_callback
+from command.start import SELECTING_ROLE, role_callback, agree_18_callback, help_callback, continue_current_callback, new_character_callback, cancel_callback
 from command.sessions import end_confirm_callback, end_cancel_callback
 from command.character import stop_confirm_callback, stop_cancel_callback
 from command.ex_fwb import fwb_end_confirm_callback, fwb_end_cancel_callback
@@ -78,7 +77,7 @@ from command.threesome import (
     threesome_start_callback,
     threesome_pattern_callback,
     threesome_cancel_confirm_callback,
-    threesome_cancel_callback
+    threesome_cancel_callback as threesome_cancel_cb
 )
 from command.public import explore_random_callback, go_callback, risk_callback
 from command.memory import (
@@ -86,7 +85,6 @@ from command.memory import (
     memory_milestone_callback,
     memory_promises_callback,
     memory_preferences_callback,
-    memory_weighted_callback,
     flashback_random_callback,
     memory_back_callback
 )
@@ -107,7 +105,7 @@ from command.admin import (
     recover_cancel_callback,
     cleanup_confirm_callback
 )
-from command.cancel import cancel_confirm_callback, cancel_fallback
+from core.ai_engine import AIEngine
 from bot.handlers import message_handler, error_handler
 
 logger = logging.getLogger(__name__)
@@ -115,16 +113,13 @@ logger = logging.getLogger(__name__)
 
 def create_application() -> Application:
     """
-    Create and configure telegram application untuk AMORIA 9.9
-    
-    Returns:
-        Application: PTB Application yang sudah dikonfigurasi
+    Create and configure telegram application untuk AMORIA
     """
     logger.info("=" * 60)
-    logger.info("🔧 Creating PTB application for AMORIA 9.9...")
+    logger.info("🔧 Creating PTB application for AMORIA...")
     logger.info("=" * 60)
     
-    # Custom request dengan timeout besar untuk AI response
+    # Custom request dengan timeout besar
     request = HTTPXRequest(
         connection_pool_size=50,
         connect_timeout=60,
@@ -144,7 +139,7 @@ def create_application() -> Application:
     # CONVERSATION HANDLERS
     # =========================================================================
     
-    # Start conversation (role selection)
+    # Start conversation
     start_conv = ConversationHandler(
         entry_points=[CommandHandler('start', start_command)],
         states={
@@ -153,7 +148,7 @@ def create_application() -> Application:
                 CallbackQueryHandler(help_callback, pattern='^help$'),
                 CallbackQueryHandler(continue_current_callback, pattern='^continue_current$'),
                 CallbackQueryHandler(new_character_callback, pattern='^new_character$'),
-                CallbackQueryHandler(start_cancel_callback, pattern='^cancel$'),
+                CallbackQueryHandler(cancel_callback, pattern='^cancel$'),
                 CallbackQueryHandler(role_callback, pattern='^role_ipar$'),
                 CallbackQueryHandler(role_callback, pattern='^role_teman_kantor$'),
                 CallbackQueryHandler(role_callback, pattern='^role_janda$'),
@@ -173,22 +168,6 @@ def create_application() -> Application:
     
     app.add_handler(start_conv)
     
-    # Cancel conversation handler
-    cancel_conv = ConversationHandler(
-        entry_points=[CommandHandler('cancel', cancel_command)],
-        states={
-            1: [  # CANCEL_CONFIRM state
-                CallbackQueryHandler(cancel_confirm_callback, pattern='^cancel_'),
-            ],
-        },
-        fallbacks=[CommandHandler('cancel', cancel_fallback)],
-        name="cancel_conversation",
-        persistent=False,
-        per_user=True,
-    )
-    
-    app.add_handler(cancel_conv)
-    
     # =========================================================================
     # COMMAND HANDLERS
     # =========================================================================
@@ -199,6 +178,7 @@ def create_application() -> Application:
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("status", status_command))
     app.add_handler(CommandHandler("progress", progress_command))
+    app.add_handler(CommandHandler("cancel", cancel_command))
     
     # Session commands
     app.add_handler(CommandHandler("sessions", sessions_command))
@@ -283,7 +263,7 @@ def create_application() -> Application:
     app.add_handler(CallbackQueryHandler(threesome_start_callback, pattern='^threesome_start_'))
     app.add_handler(CallbackQueryHandler(threesome_pattern_callback, pattern='^threesome_pattern_'))
     app.add_handler(CallbackQueryHandler(threesome_cancel_confirm_callback, pattern='^threesome_cancel_confirm$'))
-    app.add_handler(CallbackQueryHandler(threesome_cancel_callback, pattern='^threesome_cancel$'))
+    app.add_handler(CallbackQueryHandler(threesome_cancel_cb, pattern='^threesome_cancel$'))
     
     # Public callbacks
     app.add_handler(CallbackQueryHandler(explore_random_callback, pattern='^explore_random$'))
@@ -295,7 +275,6 @@ def create_application() -> Application:
     app.add_handler(CallbackQueryHandler(memory_milestone_callback, pattern='^memory_milestone$'))
     app.add_handler(CallbackQueryHandler(memory_promises_callback, pattern='^memory_promises$'))
     app.add_handler(CallbackQueryHandler(memory_preferences_callback, pattern='^memory_preferences$'))
-    app.add_handler(CallbackQueryHandler(memory_weighted_callback, pattern='^memory_weighted$'))
     app.add_handler(CallbackQueryHandler(flashback_random_callback, pattern='^flashback_random$'))
     app.add_handler(CallbackQueryHandler(memory_back_callback, pattern='^memory_back$'))
     
