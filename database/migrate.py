@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 async def create_registrations_table(db):
-    """Create registrations table with new fields"""
+    """Create registrations table with new JSON columns"""
     await db.execute('''
         CREATE TABLE IF NOT EXISTS registrations (
             id TEXT PRIMARY KEY,
@@ -33,15 +33,17 @@ async def create_registrations_table(db):
             created_at REAL NOT NULL,
             last_updated REAL NOT NULL,
             
-            -- Bot Identity
+            -- ===== JSON IDENTITY (SINGLE SOURCE OF TRUTH) =====
+            bot_identity TEXT DEFAULT '{}',
+            user_identity TEXT DEFAULT '{}',
+            
+            -- ===== BACKWARD COMPATIBILITY (akan dihapus nanti) =====
             bot_name TEXT NOT NULL,
             bot_age INTEGER,
             bot_height INTEGER,
             bot_weight INTEGER,
             bot_chest TEXT,
             bot_hijab BOOLEAN DEFAULT 0,
-            
-            -- User Identity
             user_name TEXT NOT NULL,
             user_status TEXT DEFAULT 'lajang',
             user_age INTEGER,
@@ -64,10 +66,12 @@ async def create_registrations_table(db):
             last_climax_time REAL,
             cooldown_until REAL,
             
-            -- ===== NEW FIELDS FOR REALISM 9.9 =====
+            -- Memory
             weighted_memory_score REAL DEFAULT 0.5,
             weighted_memory_data TEXT DEFAULT '{}',
             emotional_bias TEXT DEFAULT '{}',
+            
+            -- Secondary Emotion
             secondary_emotion TEXT,
             secondary_arousal INTEGER DEFAULT 0,
             secondary_emotion_reason TEXT,
@@ -92,7 +96,7 @@ async def create_registrations_table(db):
 
 
 async def create_working_memory_table(db):
-    """Create working_memory table (1000 chat terakhir)"""
+    """Create working_memory table"""
     await db.execute('''
         CREATE TABLE IF NOT EXISTS working_memory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,7 +110,6 @@ async def create_working_memory_table(db):
         )
     ''')
     
-    # Indexes
     await db.execute("CREATE INDEX IF NOT EXISTS idx_working_memory_reg ON working_memory(registration_id)")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_working_memory_chat ON working_memory(registration_id, chat_index)")
     
@@ -130,7 +133,6 @@ async def create_long_term_memory_table(db):
         )
     ''')
     
-    # Indexes
     await db.execute("CREATE INDEX IF NOT EXISTS idx_long_term_memory_reg ON long_term_memory(registration_id, memory_type)")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_long_term_memory_importance ON long_term_memory(importance)")
     
@@ -138,7 +140,7 @@ async def create_long_term_memory_table(db):
 
 
 async def create_state_tracker_table(db):
-    """Create state_tracker table with new fields"""
+    """Create state_tracker table (FOKUS LOKASI & POSISI SAJA)"""
     await db.execute('''
         CREATE TABLE IF NOT EXISTS state_tracker (
             registration_id TEXT PRIMARY KEY,
@@ -160,17 +162,6 @@ async def create_state_tracker_table(db):
             clothing_user_inner_bottom TEXT,
             clothing_history TEXT,
             
-            -- Emotion & Arousal
-            emotion_bot TEXT DEFAULT 'netral',
-            arousal_bot INTEGER DEFAULT 0,
-            mood_bot TEXT DEFAULT 'normal',
-            emotion_user TEXT DEFAULT 'netral',
-            arousal_user INTEGER DEFAULT 0,
-            
-            -- ===== NEW FIELDS FOR REALISM 9.9 =====
-            secondary_emotion TEXT,
-            secondary_arousal INTEGER DEFAULT 0,
-            
             -- Family State (IPAR & PELAKOR)
             family_status TEXT,
             family_location TEXT,
@@ -190,14 +181,15 @@ async def create_state_tracker_table(db):
         )
     ''')
     
-    # Indexes
+    # ===== TIDAK ADA LAGI: emotion_bot, arousal_bot, mood_bot =====
+    
     await db.execute("CREATE INDEX IF NOT EXISTS idx_state_tracker_updated ON state_tracker(updated_at)")
     
     logger.info("✅ Table 'state_tracker' created")
 
 
 async def create_backups_table(db):
-    """Create backups table for backup history"""
+    """Create backups table"""
     await db.execute('''
         CREATE TABLE IF NOT EXISTS backups (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -210,7 +202,6 @@ async def create_backups_table(db):
         )
     ''')
     
-    # Indexes
     await db.execute("CREATE INDEX IF NOT EXISTS idx_backups_created_at ON backups(created_at)")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_backups_type ON backups(type)")
     
@@ -218,16 +209,10 @@ async def create_backups_table(db):
 
 
 async def create_indexes(db):
-    """Create additional indexes for performance"""
-    
-    # Registration indexes
+    """Create additional indexes"""
     await db.execute("CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status)")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_registrations_role_status ON registrations(role, status)")
-    
-    # Working memory indexes
     await db.execute("CREATE INDEX IF NOT EXISTS idx_working_memory_timestamp ON working_memory(timestamp)")
-    
-    # Long term memory indexes
     await db.execute("CREATE INDEX IF NOT EXISTS idx_long_term_memory_type ON long_term_memory(memory_type)")
     
     logger.info("✅ All indexes created")
@@ -236,12 +221,16 @@ async def create_indexes(db):
 async def fix_missing_columns(db):
     """Fix missing columns in existing tables"""
     
-    # Check and add missing columns to registrations
+    # Check registrations table
     columns = await db.fetch_all("PRAGMA table_info(registrations)")
     column_names = [col['name'] for col in columns]
     
     # Columns to add if missing
     columns_to_add = {
+        # JSON Identity
+        'bot_identity': "TEXT DEFAULT '{}'",
+        'user_identity': "TEXT DEFAULT '{}'",
+        # Existing columns from previous migrations
         'in_intimacy_cycle': "BOOLEAN DEFAULT 0",
         'intimacy_cycle_count': "INTEGER DEFAULT 0",
         'last_climax_time': "REAL",
@@ -251,7 +240,6 @@ async def fix_missing_columns(db):
         'stamina_bot': "INTEGER DEFAULT 100",
         'stamina_user': "INTEGER DEFAULT 100",
         'bot_hijab': "BOOLEAN DEFAULT 0",
-        # NEW FIELDS
         'weighted_memory_score': "REAL DEFAULT 0.5",
         'weighted_memory_data': "TEXT DEFAULT '{}'",
         'emotional_bias': "TEXT DEFAULT '{}'",
@@ -291,9 +279,6 @@ async def fix_missing_columns(db):
         'family_estimate_return': "TEXT",
         'time_override_history': "TEXT DEFAULT '[]'",
         'clothing_history': "TEXT",
-        # NEW FIELDS
-        'secondary_emotion': "TEXT",
-        'secondary_arousal': "INTEGER DEFAULT 0",
         'clothing_bot_outer_bottom': "TEXT",
         'clothing_user_outer_bottom': "TEXT",
     }
@@ -321,7 +306,6 @@ async def run_migrations():
     logger.info("=" * 60)
     
     try:
-        # Get database connection
         db = await get_db()
         
         # Create all tables
@@ -342,7 +326,6 @@ async def run_migrations():
         logger.info("")
         logger.info("📊 TABLES CREATED:")
         for table in sorted(table_names):
-            # Get row count
             count = await db.fetch_one(f"SELECT COUNT(*) as count FROM {table}")
             row_count = count['count'] if count else 0
             logger.info(f"   • {table}: {row_count} rows")
@@ -362,24 +345,22 @@ async def run_migrations():
 
 
 async def migrate():
-    """Main migration function (alias for run_migrations)"""
+    """Main migration function"""
     return await run_migrations()
 
 
 def run_migration_sync():
-    """Run migration synchronously (for scripts)"""
+    """Run migration synchronously"""
     success = asyncio.run(run_migrations())
     return success
 
 
 if __name__ == "__main__":
-    # Setup logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    # Run migration
     success = run_migration_sync()
     
     if success:
