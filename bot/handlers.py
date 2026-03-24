@@ -158,17 +158,6 @@ async def _update_progress(registration_id: str, ai_engine: AIEngine) -> None:
         if new_level > old_level:
             character.level = new_level
             logger.info(f"Level up for {registration_id}: {old_level} → {new_level}")
-            
-            # Trigger level up effect
-            if new_level == 7:
-                # Bisa intim
-                pass
-            elif new_level == 11:
-                # Soul Bounded
-                pass
-            elif new_level == 12:
-                # Aftercare
-                pass
         
         # Stamina recovery
         stamina = StaminaSystem()
@@ -209,7 +198,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     is_admin = (user_id == settings.admin_id)
     
     help_text = (
-        "📚 **BANTUAN AMORIA**\n\n"
+        "📚 **BANTUAN AMORIA 9.9**\n\n"
         "<b>Basic Commands:</b>\n"
         "/start - Mulai bot & pilih karakter\n"
         "/help - Bantuan lengkap\n"
@@ -222,21 +211,21 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/sessions - Lihat semua karakter tersimpan\n"
         "/character [role] [nomor] - Lanjutkan karakter\n\n"
         "<b>Character Commands:</b>\n"
-        "/character-list - Lihat semua karakter\n"
-        "/character-pause - Jeda karakter\n"
-        "/character-resume - Lanjutkan karakter\n"
-        "/character-stop - Hentikan karakter\n\n"
+        "/character_list - Lihat semua karakter\n"
+        "/character_pause - Jeda karakter\n"
+        "/character_resume - Lanjutkan karakter\n"
+        "/character_stop - Hentikan karakter\n\n"
         "<b>Ex & FWB Commands:</b>\n"
-        "/ex-list - Lihat daftar mantan\n"
+        "/ex_list - Lihat daftar mantan\n"
         "/ex [nomor] - Detail mantan\n"
-        "/fwb-request [nomor] - Request jadi FWB\n"
-        "/fwb-list - Lihat daftar FWB\n"
-        "/fwb-pause [nomor] - Jeda FWB\n"
-        "/fwb-resume [nomor] - Lanjutkan FWB\n"
-        "/fwb-end [nomor] - Akhiri FWB\n\n"
+        "/fwb_request [nomor] - Request jadi FWB\n"
+        "/fwb_list - Lihat daftar FWB\n"
+        "/fwb_pause [nomor] - Jeda FWB\n"
+        "/fwb_resume [nomor] - Lanjutkan FWB\n"
+        "/fwb_end [nomor] - Akhiri FWB\n\n"
         "<b>HTS Commands:</b>\n"
-        "/hts-list - Lihat TOP 10 HTS\n"
-        "/hts-[nomor] - Panggil HTS untuk intim\n\n"
+        "/hts_list - Lihat TOP 10 HTS\n"
+        "/hts_[nomor] - Panggil HTS untuk intim\n\n"
         "<b>Public Area Commands:</b>\n"
         "/explore - Cari lokasi random\n"
         "/locations - Lihat semua lokasi\n"
@@ -246,9 +235,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/memory - Ringkasan memory\n"
         "/flashback - Flashback random\n\n"
         "<b>Ranking Commands:</b>\n"
-        "/top-hts - TOP 5 ranking HTS\n"
-        "/my-climax - Statistik climax pribadi\n"
-        "/climax-history - History climax"
+        "/top_hts - TOP 5 ranking HTS\n"
+        "/my_climax - Statistik climax pribadi\n"
+        "/climax_history - History climax"
     )
     
     # Admin commands
@@ -257,7 +246,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             "\n\n<b>Admin Commands:</b>\n"
             "/admin - Panel admin\n"
             "/stats - Statistik bot\n"
-            "/db-stats - Statistik database\n"
+            "/db_stats - Statistik database\n"
             "/backup - Backup manual\n"
             "/recover - Restore dari backup\n"
             "/debug - Info debug"
