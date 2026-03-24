@@ -133,12 +133,39 @@ def run_migration() -> bool:
 def start_bot() -> bool:
     """Start the bot with error handling"""
     log_info("\n" + "=" * 60)
-    log_info("🚀 STARTING AMORIA ON RAILWAY")
+    log_info("🚀 STARTING AMORIA ON RAILWAY (POLLING MODE)")
     log_info("=" * 60)
     
     try:
-        from main import main
-        asyncio.run(main())
+        import asyncio
+        from main import AmoriaBot
+        
+        async def run():
+            bot = AmoriaBot()
+            
+            # Initialize database
+            await bot.init_database()
+            
+            # Initialize application
+            await bot.init_application()
+            
+            # FORCE POLLING MODE - skip webhook
+            await bot.application.bot.delete_webhook(drop_pending_updates=True)
+            log_info("✅ Webhook deleted, using polling mode")
+            
+            # Start polling
+            await bot.application.initialize()
+            await bot.application.start()
+            await bot.application.updater.start_polling()
+            
+            log_info("✅ Bot started in POLLING MODE!")
+            log_info("💜 AMORIA 9.9 is running!")
+            
+            # Keep running
+            while True:
+                await asyncio.sleep(1)
+        
+        asyncio.run(run())
         return True
     except KeyboardInterrupt:
         log_info("\n👋 Bot stopped")
