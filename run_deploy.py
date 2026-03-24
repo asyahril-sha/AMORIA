@@ -3,7 +3,7 @@
 """
 =============================================================================
 AMORIA - Virtual Human dengan Jiwa
-Deployment Runner for Railway - With Webhook & Health Check
+Deployment Runner for Railway - WITH SINGLETON BOT
 =============================================================================
 """
 
@@ -14,117 +14,87 @@ import traceback
 from pathlib import Path
 from aiohttp import web
 
-# Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-# Import error logger first
 from utils.error_logger import get_error_logger, log_info, log_error, log_warning, print_startup_banner
+from utils.logger import setup_logging
 
-# Initialize error logger
-error_logger = get_error_logger()
-print_startup_banner()
-
-try:
-    from config import settings
-    from utils.logger import setup_logging
-    from bot.application import create_application
-    from bot.webhook import setup_webhook_sync, setup_polling
-    from database.migrate import run_migrations
-except Exception as e:
-    error_logger.log_error(e, {'stage': 'import_modules'}, severity="CRITICAL")
-    sys.exit(1)
-
-logger = setup_logging("AMORIA-DEPLOY")
+# =============================================================================
+# GLOBAL BOT INSTANCE (SINGLETON)
+# =============================================================================
+_bot_instance = None
+_bot_initialized = False
 
 
-def check_environment() -> bool:
-    """Check environment without interactive input"""
-    log_info("=" * 60)
-    log_info("🔍 CHECKING ENVIRONMENT (DEPLOYMENT MODE)")
-    log_info("=" * 60)
+async def init_bot():
+    """Initialize bot once at startup"""
+    global _bot_instance, _bot_initialized
     
-    errors = []
-    warnings = []
+    if _bot_initialized:
+        log_info("✅ Bot already initialized, reusing instance")
+        return _bot_instance
     
-    railway_env = os.getenv('RAILWAY_ENVIRONMENT')
-    railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN')
-    railway_url = os.getenv('RAILWAY_STATIC_URL')
-    
-    log_info(f"📡 Railway Environment: {railway_env or 'Not detected'}")
-    log_info(f"📡 Railway Domain: {railway_domain or 'Not set'}")
-    log_info(f"📡 Railway URL: {railway_url or 'Not set'}")
-    
-    env_path = Path(".env")
-    if not env_path.exists():
-        log_warning("⚠️ .env file not found! Using environment variables.")
+    log_info("🚀 Initializing bot instance (SINGLETON MODE)...")
     
     try:
-        if not settings.deepseek_api_key or settings.deepseek_api_key == "your_deepseek_api_key_here":
-            errors.append("DeepSeek API key not configured")
-            log_error("DeepSeek API key missing")
-        else:
-            log_info(f"✅ DeepSeek API Key: {settings.deepseek_api_key[:10]}...")
+        from main import AmoriaBot
         
-        if not settings.telegram_token or settings.telegram_token == "your_telegram_bot_token_here":
-            errors.append("Telegram token not configured")
-            log_error("Telegram token missing")
-        else:
-            log_info(f"✅ Telegram Token: {settings.telegram_token[:10]}...")
+        _bot_instance = AmoriaBot()
         
-        if settings.admin_id == 0:
-            warnings.append("Admin ID not configured")
-            log_warning("⚠️ Admin ID not configured")
-        else:
-            log_info(f"✅ Admin ID: {settings.admin_id}")
-            
+        # Initialize database
+        await _bot_instance.init_database()
+        
+        # Initialize application
+        await _bot_instance.init_application()
+        
+        # Delete old webhook
+        await _bot_instance.application.bot.delete_webhook(drop_pending_updates=True)
+        log_info("✅ Old webhook deleted")
+        
+        _bot_initialized = True
+        log_info("✅ Bot instance initialized successfully (SINGLETON)")
+        
     except Exception as e:
-        errors.append(f"Failed to load config: {e}")
-        error_logger.log_error(e, {'stage': 'config_load'})
+        log_error(f"❌ Failed to initialize bot: {e}")
+        raise
     
-    required_dirs = [
-        'data', 'data/logs', 'data/backups', 
-        'data/sessions', 'data/vector_db', 'data/memory'
-    ]
-    
-    for dir_name in required_dirs:
-        dir_path = Path(dir_name)
-        dir_path.mkdir(parents=True, exist_ok=True)
-        log_info(f"✅ Directory: {dir_name}")
-    
-    if errors:
-        log_error("\n❌ ERRORS FOUND:")
-        for err in errors:
-            log_error(f"   - {err}")
-        return False
-    
-    if warnings:
-        log_warning("\n⚠️ WARNINGS:")
-        for warn in warnings:
-            log_warning(f"   - {warn}")
-    
-    log_info("\n✅ Environment is ready!")
-    return True
+    return _bot_instance
 
 
-def run_migration() -> bool:
-    """Run database migration"""
-    log_info("\n" + "=" * 60)
-    log_info("🗄️ RUNNING DATABASE MIGRATION")
-    log_info("=" * 60)
+# =============================================================================
+# WEBHOOK HANDLER
+# =============================================================================
+
+async def webhook_handler(request):
+    """Handle Telegram webhook requests"""
+    global _bot_instance
+    
+    if not _bot_initialized or not _bot_instance:
+        log_error("❌ Bot not initialized yet!")
+        return web.Response(status=503, text='Bot not ready')
     
     try:
-        success = asyncio.run(run_migrations())
+        # Get update data
+        update_data = await request.json()
         
-        if success:
-            log_info("✅ Migration completed")
-            return True
-        else:
-            log_error("❌ Migration failed")
-            return False
-            
+        if not update_data:
+            return web.Response(status=400, text='No data')
+        
+        log_info(f"📨 Webhook received: update_id={update_data.get('update_id', 'unknown')}")
+        
+        # Create Update object
+        from telegram import Update
+        update = Update.de_json(update_data, _bot_instance.application.bot)
+        
+        # Process update (WAIT for completion, don't create task)
+        await _bot_instance.application.process_update(update)
+        
+        return web.Response(text='OK', status=200)
+        
     except Exception as e:
-        error_logger.log_error(e, {'stage': 'migration'}, severity="ERROR")
-        return False
+        log_error(f"❌ Webhook error: {e}")
+        log_error(traceback.format_exc())
+        return web.Response(status=500, text='Error')
 
 
 async def health_handler(request):
@@ -133,6 +103,7 @@ async def health_handler(request):
         "status": "healthy",
         "bot": "AMORIA",
         "version": "9.9.0",
+        "bot_initialized": _bot_initialized,
         "timestamp": __import__('datetime').datetime.now().isoformat()
     })
 
@@ -144,6 +115,7 @@ async def root_handler(request):
         "description": "Virtual Human dengan Jiwa",
         "version": "9.9.0",
         "status": "running",
+        "bot_initialized": _bot_initialized,
         "endpoints": {
             "health": "/health",
             "webhook": "/webhook"
@@ -151,109 +123,87 @@ async def root_handler(request):
     })
 
 
-async def webhook_handler(request):
-    """Webhook endpoint untuk Telegram"""
-    try:
-        from main import AmoriaBot
-        bot = AmoriaBot()
-        await bot.init_application()
-        
-        update_data = await request.json()
-        log_info(f"📨 Received webhook update: {update_data.get('update_id', 'unknown')}")
-        
-        # Process update
-        from telegram import Update
-        update = Update.de_json(update_data, bot.application.bot)
-        asyncio.create_task(bot.application.process_update(update))
-        
-        return web.Response(text='OK', status=200)
-        
-    except Exception as e:
-        error_logger.log_error(e, {'stage': 'webhook_handler'})
-        return web.Response(text='Error', status=500)
+# =============================================================================
+# START WEB SERVER
+# =============================================================================
 
-
-def start_web_server():
-    """Start aiohttp web server with all endpoints"""
-    log_info("\n" + "=" * 60)
-    log_info("🌐 STARTING WEB SERVER")
-    log_info("=" * 60)
-    
+async def start_web_server():
+    """Start aiohttp web server with singleton bot"""
     port = int(os.getenv('PORT', 8080))
     
+    # Initialize bot FIRST
+    await init_bot()
+    
+    # Setup webhook after bot initialized
+    if _bot_instance and _bot_instance.application:
+        railway_url = os.getenv('RAILWAY_PUBLIC_DOMAIN') or os.getenv('RAILWAY_STATIC_URL')
+        if railway_url:
+            webhook_url = f"https://{railway_url}/webhook"
+            log_info(f"🔗 Setting webhook to: {webhook_url}")
+            
+            await _bot_instance.application.bot.set_webhook(
+                url=webhook_url,
+                allowed_updates=['message', 'callback_query', 'inline_query'],
+                drop_pending_updates=True,
+                max_connections=40,
+                timeout=30
+            )
+            
+            info = await _bot_instance.application.bot.get_webhook_info()
+            log_info(f"✅ Webhook set: {info.url}")
+            log_info(f"   Pending updates: {info.pending_update_count}")
+    
+    # Create web app
     app = web.Application()
     app.router.add_get('/', root_handler)
     app.router.add_get('/health', health_handler)
     app.router.add_post('/webhook', webhook_handler)
     
-    web.run_app(app, host='0.0.0.0', port=port)
-
-
-def start_bot_with_polling():
-    """Start bot with polling mode (fallback jika webhook tidak bisa)"""
-    log_info("\n" + "=" * 60)
-    log_info("🚀 STARTING AMORIA WITH POLLING MODE")
+    # Run server
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    
+    log_info(f"🌐 Web server running on port {port}")
+    log_info(f"   • GET  /         - API Info")
+    log_info(f"   • GET  /health   - Health Check")
+    log_info(f"   • POST /webhook  - Telegram Webhook")
+    log_info("=" * 60)
+    log_info("💜 AMORIA 9.9 is running on Railway (SINGLETON MODE)!")
     log_info("=" * 60)
     
-    try:
-        from main import main
-        asyncio.run(main())
-        return True
-        
-    except ImportError as e:
-        log_error(f"❌ ImportError: {e}")
-        log_error(traceback.format_exc())
-        return False
-        
-    except Exception as e:
-        error_logger.log_error(e, {'stage': 'bot_start'}, severity="CRITICAL")
-        log_error(traceback.format_exc())
-        return False
+    # Keep running
+    while True:
+        await asyncio.sleep(3600)
 
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
-    """Main runner untuk deployment"""
-    print("""
-╔══════════════════════════════════════════════════════════════════╗
-║                                                                  ║
-║     💜 AMORIA 9.9 - Virtual Human dengan Jiwa                   ║
-║     Deployment Mode (Railway)                                   ║
-║                                                                  ║
-║     🔧 Automatic Setup:                                         ║
-║     • Checking environment variables                           ║
-║     • Creating directories                                      ║
-║     • Running database migration                                ║
-║     • Starting web server with webhook endpoint                 ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
-    """)
+    """Main entry point"""
+    error_logger = get_error_logger()
+    print_startup_banner()
     
-    # Step 1: Check environment
-    if not check_environment():
-        log_error("Environment check failed. Please set environment variables.")
+    # Check environment
+    try:
+        from config import settings
+        log_info(f"✅ Config loaded: Admin ID = {settings.admin_id}")
+    except Exception as e:
+        log_error(f"❌ Config error: {e}")
         sys.exit(1)
     
-    # Step 2: Run migration
-    if not run_migration():
-        log_warning("Migration failed, but continuing...")
-    
-    # Step 3: Start web server (with webhook endpoint)
-    log_info("\n" + "=" * 60)
-    log_info("🌐 STARTING WEB SERVER WITH WEBHOOK ENDPOINT...")
-    log_info("📡 Endpoints:")
-    log_info("   • GET  /         - API Info")
-    log_info("   • GET  /health   - Health Check")
-    log_info("   • POST /webhook  - Telegram Webhook")
-    log_info("=" * 60)
-    
-    # Start web server (blocking)
-    start_web_server()
+    # Start web server
+    try:
+        asyncio.run(start_web_server())
+    except KeyboardInterrupt:
+        log_info("👋 Bot stopped by user")
+    except Exception as e:
+        error_logger.log_error(e, {'stage': 'main'}, severity="CRITICAL")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        error_logger = get_error_logger()
-        error_logger.log_error(e, {'stage': 'deploy_main'}, severity="CRITICAL")
-        sys.exit(1)
+    main()
