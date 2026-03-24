@@ -159,8 +159,68 @@ async def agree_18_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return SELECTING_ROLE
 
 
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handler untuk /help - Bantuan lengkap (command handler, bukan callback)
+    """
+    user_id = update.effective_user.id
+    is_admin = (user_id == settings.admin_id)
+    
+    help_text = (
+        "📚 **BANTUAN AMORIA 9.9**\n\n"
+        "<b>Basic Commands:</b>\n"
+        "/start - Mulai bot & pilih karakter\n"
+        "/help - Bantuan lengkap\n"
+        "/status - Status hubungan saat ini\n"
+        "/progress - Progress leveling\n"
+        "/cancel - Batalkan percakapan\n\n"
+        "<b>Session Commands:</b>\n"
+        "/close - Tutup & simpan karakter\n"
+        "/end - Akhiri karakter total\n"
+        "/sessions - Lihat semua karakter tersimpan\n"
+        "/character [role] [nomor] - Lanjutkan karakter\n\n"
+        "<b>Character Commands:</b>\n"
+        "/character-list - Lihat semua karakter\n"
+        "/character-pause - Jeda karakter\n"
+        "/character-resume - Lanjutkan karakter\n"
+        "/character-stop - Hentikan karakter\n\n"
+        "<b>Ex & FWB Commands:</b>\n"
+        "/ex-list - Lihat daftar mantan\n"
+        "/ex [nomor] - Detail mantan\n"
+        "/fwb-request [nomor] - Request jadi FWB\n"
+        "/fwb-list - Lihat daftar FWB\n"
+        "/fwb-pause [nomor] - Jeda FWB\n"
+        "/fwb-resume [nomor] - Lanjutkan FWB\n"
+        "/fwb-end [nomor] - Akhiri FWB\n\n"
+        "<b>HTS Commands:</b>\n"
+        "/hts-list - Lihat TOP 10 HTS\n"
+        "/hts-[nomor] - Panggil HTS untuk intim\n\n"
+        "<b>Public Area Commands:</b>\n"
+        "/explore - Cari lokasi random\n"
+        "/locations - Lihat semua lokasi\n"
+        "/risk - Cek risk lokasi saat ini\n"
+        "/go [lokasi] - Pindah ke lokasi\n\n"
+        "<b>Memory Commands:</b>\n"
+        "/memory - Ringkasan memory\n"
+        "/flashback - Flashback random\n\n"
+        "<b>Ranking Commands:</b>\n"
+        "/top-hts - TOP 5 ranking HTS\n"
+        "/my-climax - Statistik climax pribadi\n"
+        "/climax-history - History climax\n\n"
+        "<b>Admin Commands (Admin Only):</b>\n"
+        "/admin - Panel admin\n"
+        "/stats - Statistik bot\n"
+        "/db-stats - Statistik database\n"
+        "/backup - Backup manual\n"
+        "/recover - Restore dari backup\n"
+        "/debug - Info debug"
+    )
+    
+    await update.message.reply_text(help_text, parse_mode='HTML')
+
+
 async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Callback untuk bantuan"""
+    """Callback untuk bantuan (inline keyboard)"""
     query = update.callback_query
     await query.answer()
     
@@ -399,6 +459,7 @@ __all__ = [
     'start_command',
     'role_callback',
     'agree_18_callback',
+    'help_command',
     'help_callback',
     'continue_current_callback',
     'new_character_callback',
