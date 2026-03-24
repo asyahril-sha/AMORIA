@@ -19,6 +19,7 @@ from typing import Optional
 from aiohttp import web
 from telegram import Update
 from telegram.ext import Application
+from telegram.request import HTTPXRequest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -29,6 +30,7 @@ from utils.error_logger import (
     log_error, 
     log_info, 
     log_warning, 
+    log_debug,
     print_startup_banner,
     handle_errors
 )
@@ -37,14 +39,15 @@ from utils.error_logger import (
 error_logger = get_error_logger()
 print_startup_banner()
 
+# Import other modules with error handling
 try:
     from config import settings
     from utils.logger import setup_logging
     from bot.application import create_application
-    from bot.webhook import setup_webhook_sync, setup_polling
+    from bot.webhook import setup_webhook_sync, setup_polling, check_webhook_status
     from database.migrate import run_migrations
     
-    log_info("All modules imported successfully")
+    log_info("✅ All modules imported successfully")
     
 except Exception as e:
     error_logger.log_error(e, {'stage': 'import_modules'}, severity="CRITICAL")
@@ -76,6 +79,7 @@ class AmoriaBot:
         log_info("🗄️ Initializing database...")
         
         try:
+            # Run migrations
             success = await run_migrations()
             
             if success:
@@ -98,6 +102,7 @@ class AmoriaBot:
             self.application = create_application()
             await self.application.initialize()
             
+            # Add error handler
             self.application.add_error_handler(self.error_handler)
             
             log_info("✅ Bot application created")
@@ -109,7 +114,7 @@ class AmoriaBot:
     
     @handle_errors(severity="ERROR")
     async def error_handler(self, update: Update, context) -> None:
-        """Global error handler dengan logging ke Railway"""
+        """Global error handler with logging to Railway"""
         error = context.error
         
         # Log error ke Railway
@@ -119,7 +124,8 @@ class AmoriaBot:
                 'update_id': update.update_id if update else None,
                 'user_id': update.effective_user.id if update and update.effective_user else None,
                 'chat_id': update.effective_chat.id if update and update.effective_chat else None,
-                'message_text': update.message.text[:200] if update and update.message and update.message.text else None
+                'message_text': update.message.text[:200] if update and update.message and update.message.text else None,
+                'callback_data': update.callback_query.data[:200] if update and update.callback_query and update.callback_query.data else None
             },
             severity="ERROR"
         )
@@ -149,9 +155,11 @@ class AmoriaBot:
             
             log_info(f"🔗 Setting webhook to: {webhook_url}")
             
+            # Delete old webhook
             await self.application.bot.delete_webhook(drop_pending_updates=True)
             log_info("✅ Old webhook deleted")
             
+            # Set new webhook
             await self.application.bot.set_webhook(
                 url=webhook_url,
                 allowed_updates=['message', 'callback_query'],
@@ -160,12 +168,14 @@ class AmoriaBot:
                 timeout=30
             )
             
+            # Verify
             info = await self.application.bot.get_webhook_info()
             if info.url == webhook_url:
                 log_info(f"✅ Webhook verified: {info.url}")
+                log_info(f"   Pending updates: {info.pending_update_count}")
                 return True
             else:
-                log_warning(f"⚠️ Webhook verification failed: {info.url}")
+                log_error(f"❌ Webhook verification failed: {info.url}")
                 return False
                 
         except Exception as e:
@@ -173,7 +183,7 @@ class AmoriaBot:
             return False
     
     async def webhook_handler(self, request) -> web.Response:
-        """AIOHTTP webhook handler dengan error logging"""
+        """AIOHTTP webhook handler with error logging"""
         if not self.application:
             return web.Response(status=503, text='Bot not ready')
         
@@ -193,7 +203,7 @@ class AmoriaBot:
             return web.Response(status=500, text=str(e))
     
     async def health_handler(self, request) -> web.Response:
-        """Health check endpoint dengan status detail"""
+        """Health check endpoint with status detail"""
         from database.repository import Repository
         
         db_status = "unknown"
@@ -254,20 +264,28 @@ class AmoriaBot:
             "uptime": str(datetime.now() - self.start_time)
         })
     
-    @handle_errors(severity="CRITICAL")
     async def start(self):
-        """Start bot dengan error handling"""
+        """Start bot and aiohttp server with enhanced logging"""
         try:
             self.print_banner()
             
-            log_info("📡 Stage 1/5: Initializing database...")
+            log_info("=" * 70)
+            log_info("📡 STAGE 1/5: Initializing database...")
+            log_info("=" * 70)
+            
             if not await self.init_database():
                 log_warning("⚠️ Database initialization incomplete, but continuing...")
             
-            log_info("📡 Stage 2/5: Creating application...")
+            log_info("=" * 70)
+            log_info("📡 STAGE 2/5: Creating application...")
+            log_info("=" * 70)
+            
             await self.init_application()
             
-            log_info("📡 Stage 3/5: Setting up webhook/polling...")
+            log_info("=" * 70)
+            log_info("📡 STAGE 3/5: Setting up webhook/polling...")
+            log_info("=" * 70)
+            
             webhook_success = await self.setup_webhook()
             
             if webhook_success:
@@ -276,7 +294,10 @@ class AmoriaBot:
                 log_info("📡 Using polling mode...")
                 await setup_polling(self.application)
             
-            log_info("📡 Stage 4/5: Starting aiohttp server...")
+            log_info("=" * 70)
+            log_info("📡 STAGE 4/5: Starting aiohttp server...")
+            log_info("=" * 70)
+            
             port = int(os.getenv('PORT', 8080))
             
             app = web.Application()
@@ -294,7 +315,8 @@ class AmoriaBot:
             log_info(f"   • API Info: /")
             log_info(f"   • Webhook: {settings.webhook.path}")
             
-            log_info("📡 Stage 5/5: Bot is ready!")
+            log_info("=" * 70)
+            log_info("📡 STAGE 5/5: Bot is ready!")
             log_info("=" * 70)
             log_info("💜 AMORIA 9.9 is running on Railway!")
             log_info("   Press Ctrl+C to stop.")
@@ -315,10 +337,11 @@ class AmoriaBot:
             await self.shutdown()
     
     async def shutdown(self):
-        """Graceful shutdown dengan logging"""
+        """Graceful shutdown with logging"""
         log_info("🛑 Shutting down AMORIA...")
         self._shutdown_flag = True
         
+        # Close database connection
         try:
             from database.connection import close_db
             await close_db()
@@ -326,6 +349,7 @@ class AmoriaBot:
         except Exception as e:
             error_logger.log_error(e, {'stage': 'shutdown_db'})
         
+        # Stop application
         if self.application:
             try:
                 await self.application.stop()
@@ -380,12 +404,12 @@ class AmoriaBot:
 
 
 def signal_handler():
-    """Handle shutdown signals dengan logging"""
+    """Handle shutdown signals with logging"""
     log_info("Received shutdown signal, shutting down...")
 
 
 async def main():
-    """Main entry point dengan error handling"""
+    """Main entry point with error handling"""
     bot = AmoriaBot()
     
     loop = asyncio.get_running_loop()
