@@ -33,11 +33,11 @@ async def create_registrations_table(db):
             created_at REAL NOT NULL,
             last_updated REAL NOT NULL,
             
-            -- ===== JSON IDENTITY (SINGLE SOURCE OF TRUTH) =====
+            -- JSON Identity
             bot_identity TEXT DEFAULT '{}',
             user_identity TEXT DEFAULT '{}',
             
-            -- ===== BACKWARD COMPATIBILITY (akan dihapus nanti) =====
+            -- Backward compatibility
             bot_name TEXT NOT NULL,
             bot_age INTEGER,
             bot_height INTEGER,
@@ -117,7 +117,7 @@ async def create_working_memory_table(db):
 
 
 async def create_long_term_memory_table(db):
-    """Create long_term_memory table"""
+    """Create long_term_memory table with status and emotional_tag columns"""
     await db.execute('''
         CREATE TABLE IF NOT EXISTS long_term_memory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,7 +152,7 @@ async def create_state_tracker_table(db):
             position_user TEXT,
             position_relative TEXT,
             
-            -- Clothing (hierarchy)
+            -- Clothing
             clothing_bot_outer TEXT,
             clothing_bot_outer_bottom TEXT,
             clothing_bot_inner_top TEXT,
@@ -180,8 +180,6 @@ async def create_state_tracker_table(db):
             FOREIGN KEY (registration_id) REFERENCES registrations(id) ON DELETE CASCADE
         )
     ''')
-    
-    # ===== TIDAK ADA LAGI: emotion_bot, arousal_bot, mood_bot =====
     
     await db.execute("CREATE INDEX IF NOT EXISTS idx_state_tracker_updated ON state_tracker(updated_at)")
     
@@ -221,16 +219,15 @@ async def create_indexes(db):
 async def fix_missing_columns(db):
     """Fix missing columns in existing tables"""
     
-    # Check registrations table
+    # ===== CHECK REGISTRATIONS TABLE =====
     columns = await db.fetch_all("PRAGMA table_info(registrations)")
     column_names = [col['name'] for col in columns]
     
-    # Columns to add if missing
     columns_to_add = {
         # JSON Identity
         'bot_identity': "TEXT DEFAULT '{}'",
         'user_identity': "TEXT DEFAULT '{}'",
-        # Existing columns from previous migrations
+        # Existing columns
         'in_intimacy_cycle': "BOOLEAN DEFAULT 0",
         'intimacy_cycle_count': "INTEGER DEFAULT 0",
         'last_climax_time': "REAL",
@@ -267,20 +264,19 @@ async def fix_missing_columns(db):
     else:
         logger.info("✅ No missing columns found in registrations")
     
-    # Check state_tracker columns
+    # ===== CHECK STATE_TRACKER TABLE =====
     columns = await db.fetch_all("PRAGMA table_info(state_tracker)")
     column_names = [col['name'] for col in columns]
     
     state_columns_to_add = {
-        'mood_bot': "TEXT DEFAULT 'normal'",
+        'clothing_bot_outer_bottom': "TEXT",
+        'clothing_user_outer_bottom': "TEXT",
         'family_status': "TEXT",
         'family_location': "TEXT",
         'family_activity': "TEXT",
         'family_estimate_return': "TEXT",
         'time_override_history': "TEXT DEFAULT '[]'",
         'clothing_history': "TEXT",
-        'clothing_bot_outer_bottom': "TEXT",
-        'clothing_user_outer_bottom': "TEXT",
     }
     
     added = 0
@@ -295,6 +291,28 @@ async def fix_missing_columns(db):
     
     if added > 0:
         logger.info(f"📊 Fixed {added} missing columns in state_tracker")
+    
+    # ===== CHECK LONG_TERM_MEMORY TABLE =====
+    columns = await db.fetch_all("PRAGMA table_info(long_term_memory)")
+    column_names = [col['name'] for col in columns]
+    
+    long_term_columns_to_add = {
+        'status': "TEXT",
+        'emotional_tag': "TEXT",
+    }
+    
+    added = 0
+    for col_name, col_def in long_term_columns_to_add.items():
+        if col_name not in column_names:
+            try:
+                await db.execute(f"ALTER TABLE long_term_memory ADD COLUMN {col_name} {col_def}")
+                logger.info(f"✅ Added missing column: {col_name}")
+                added += 1
+            except Exception as e:
+                logger.warning(f"⚠️ Could not add column {col_name}: {e}")
+    
+    if added > 0:
+        logger.info(f"📊 Fixed {added} missing columns in long_term_memory")
     
     return added
 
