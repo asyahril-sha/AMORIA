@@ -11,7 +11,6 @@ from .handlers import (
     error_handler,
     help_command,
     cancel_command,
-    status_command_handler,
     _active_engines
 )
 from .callbacks import (
