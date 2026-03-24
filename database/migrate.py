@@ -244,27 +244,36 @@ async def run_migrations():
     try:
         db = await get_db()
 
-        await create_tables(db)
-        await fix_missing_columns(db)
+        # Create tables
+        await create_registrations_table(db)
+        await create_working_memory_table(db)
+        await create_long_term_memory_table(db)
+        await create_state_tracker_table(db)
+        await create_backups_table(db)
         await create_indexes(db)
 
-        logger.info("✅ DATABASE READY")
+        # Fix missing columns
+        await fix_missing_columns(db)
+
+        # ✅ VERIFY TABLES (TARUH DI SINI)
+        tables = await db.fetch_all("SELECT name FROM sqlite_master WHERE type='table'")
+        table_names = [t['name'] for t in tables]
+
+        logger.info("\n📊 TABLES CREATED:")
+        for table in sorted(table_names):
+            try:
+                count = await db.fetch_one(f"SELECT COUNT(*) as count FROM {table}")
+                row_count = count['count'] if count else 0
+                logger.info(f"   • {table}: {row_count} rows")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not read table {table}: {e}")
+
+        logger.info("=" * 60)
+        logger.info("✅ Migration Complete")
+        logger.info("=" * 60)
+
         return True
 
     except Exception as e:
         logger.error(f"❌ Migration failed: {e}")
         return False
-
-
-async def migrate():
-    """Alias for run_migrations (for compatibility)"""
-    return await run_migrations()
-
-
-def run_migration_sync():
-    return asyncio.run(run_migrations())
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    run_migration_sync()
