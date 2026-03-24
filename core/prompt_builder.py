@@ -430,7 +430,7 @@ class PromptBuilder:
         elif level <= 6:
             target = "3-4 kalimat, 800-1000 karakter"
         elif level <= 9:
-            target = "4-5 kalimat, 800-12000 karakter"
+            target = "4-5 kalimat, 800-1200 karakter"
         else:
             target = "4-8 kalimat, 800-1500 karakter"
         
