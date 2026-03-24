@@ -68,7 +68,7 @@ from command import (
     recover_command,
     debug_command,
 )
-from command.start import SELECTING_ROLE, role_callback, agree_18_callback, help_callback, continue_current_callback, new_character_callback, cancel_callback as start_cancel_callback
+from command.start import SELECTING_ROLE, role_callback, agree_18_callback, help_callback as start_help_callback, continue_current_callback, new_character_callback, cancel_callback as start_cancel_callback
 from command.sessions import end_confirm_callback, end_cancel_callback
 from command.character import stop_confirm_callback, stop_cancel_callback
 from command.ex_fwb import fwb_end_confirm_callback, fwb_end_cancel_callback
@@ -150,7 +150,7 @@ def create_application() -> Application:
         states={
             SELECTING_ROLE: [
                 CallbackQueryHandler(agree_18_callback, pattern='^agree_18$'),
-                CallbackQueryHandler(help_callback, pattern='^help$'),
+                CallbackQueryHandler(start_help_callback, pattern='^help$'),
                 CallbackQueryHandler(continue_current_callback, pattern='^continue_current$'),
                 CallbackQueryHandler(new_character_callback, pattern='^new_character$'),
                 CallbackQueryHandler(start_cancel_callback, pattern='^cancel$'),
@@ -205,33 +205,33 @@ def create_application() -> Application:
     app.add_handler(CommandHandler("close", close_command))
     app.add_handler(CommandHandler("end", end_command))
     
-    # Character commands
+    # Character commands (using underscore)
     app.add_handler(CommandHandler("character", character_command))
-    app.add_handler(CommandHandler("character-list", character_list_command))
-    app.add_handler(CommandHandler("character-pause", character_pause_command))
-    app.add_handler(CommandHandler("character-resume", character_resume_command))
-    app.add_handler(CommandHandler("character-stop", character_stop_command))
+    app.add_handler(CommandHandler("character_list", character_list_command))
+    app.add_handler(CommandHandler("character_pause", character_pause_command))
+    app.add_handler(CommandHandler("character_resume", character_resume_command))
+    app.add_handler(CommandHandler("character_stop", character_stop_command))
     
-    # Ex & FWB commands
-    app.add_handler(CommandHandler("ex-list", ex_list_command))
+    # Ex & FWB commands (using underscore)
+    app.add_handler(CommandHandler("ex_list", ex_list_command))
     app.add_handler(CommandHandler("ex", ex_detail_command))
-    app.add_handler(CommandHandler("fwb-request", fwb_request_command))
-    app.add_handler(CommandHandler("fwb-list", fwb_list_command))
-    app.add_handler(CommandHandler("fwb-pause", fwb_pause_command))
-    app.add_handler(CommandHandler("fwb-resume", fwb_resume_command))
-    app.add_handler(CommandHandler("fwb-end", fwb_end_command))
+    app.add_handler(CommandHandler("fwb_request", fwb_request_command))
+    app.add_handler(CommandHandler("fwb_list", fwb_list_command))
+    app.add_handler(CommandHandler("fwb_pause", fwb_pause_command))
+    app.add_handler(CommandHandler("fwb_resume", fwb_resume_command))
+    app.add_handler(CommandHandler("fwb_end", fwb_end_command))
     
-    # HTS commands
-    app.add_handler(CommandHandler("hts-list", hts_list_command))
-    app.add_handler(CommandHandler("hts-detail", hts_detail_command))
-    app.add_handler(MessageHandler(filters.Regex(r'^/hts-'), hts_call_handler))
+    # HTS commands (using underscore)
+    app.add_handler(CommandHandler("hts_list", hts_list_command))
+    app.add_handler(CommandHandler("hts_detail", hts_detail_command))
+    app.add_handler(MessageHandler(filters.Regex(r'^/hts_'), hts_call_handler))
     
-    # Threesome commands
+    # Threesome commands (using underscore)
     app.add_handler(CommandHandler("threesome", threesome_command))
-    app.add_handler(CommandHandler("threesome-list", threesome_list_command))
-    app.add_handler(CommandHandler("threesome-status", threesome_status_command))
-    app.add_handler(CommandHandler("threesome-pattern", threesome_pattern_command))
-    app.add_handler(CommandHandler("threesome-cancel", threesome_cancel_command))
+    app.add_handler(CommandHandler("threesome_list", threesome_list_command))
+    app.add_handler(CommandHandler("threesome_status", threesome_status_command))
+    app.add_handler(CommandHandler("threesome_pattern", threesome_pattern_command))
+    app.add_handler(CommandHandler("threesome_cancel", threesome_cancel_command))
     
     # Public commands
     app.add_handler(CommandHandler("explore", explore_command))
@@ -243,15 +243,15 @@ def create_application() -> Application:
     app.add_handler(CommandHandler("memory", memory_command))
     app.add_handler(CommandHandler("flashback", flashback_command))
     
-    # Ranking commands
-    app.add_handler(CommandHandler("top-hts", top_hts_command))
-    app.add_handler(CommandHandler("my-climax", my_climax_command))
-    app.add_handler(CommandHandler("climax-history", climax_history_command))
+    # Ranking commands (using underscore)
+    app.add_handler(CommandHandler("top_hts", top_hts_command))
+    app.add_handler(CommandHandler("my_climax", my_climax_command))
+    app.add_handler(CommandHandler("climax_history", climax_history_command))
     
-    # Admin commands
+    # Admin commands (using underscore)
     app.add_handler(CommandHandler("admin", admin_command))
     app.add_handler(CommandHandler("stats", stats_command))
-    app.add_handler(CommandHandler("db-stats", db_stats_command))
+    app.add_handler(CommandHandler("db_stats", db_stats_command))
     app.add_handler(CommandHandler("backup", backup_command))
     app.add_handler(CommandHandler("recover", recover_command))
     app.add_handler(CommandHandler("debug", debug_command))
