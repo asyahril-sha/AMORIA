@@ -57,50 +57,43 @@ class Repository:
         return 1
     
     async def create_registration(self, registration: Registration) -> str:
-        """Buat registrasi baru"""
+        """
+        Buat registrasi baru - DYNAMIC QUERY
+        Auto menyesuaikan dengan field yang ada di data
+        """
         db = await self._get_db()
         data = registration.to_dict()
         
-        await db.execute(
-            """
-            INSERT INTO registrations (
-                id, role, sequence, status, created_at, last_updated,
-                bot_identity, user_identity,
-                bot_name, bot_age, bot_height, bot_weight, bot_chest, bot_hijab,
-                user_name, user_status, user_age, user_height, user_weight,
-                user_penis, user_artist_ref,
-                level, total_chats, total_climax_bot, total_climax_user,
-                stamina_bot, stamina_user,
-                in_intimacy_cycle, intimacy_cycle_count,
-                last_climax_time, cooldown_until,
-                weighted_memory_score, weighted_memory_data, emotional_bias,
-                secondary_emotion, secondary_arousal, secondary_emotion_reason,
-                physical_sensation, physical_hunger, physical_thirst, physical_temperature,
-                metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                data['id'], data['role'], data['sequence'], data['status'],
-                data['created_at'], data['last_updated'],
-                data['bot_identity'], data['user_identity'],
-                data['bot_name'], data['bot_age'], data['bot_height'],
-                data['bot_weight'], data['bot_chest'], data['bot_hijab'],
-                data['user_name'], data['user_status'], data['user_age'],
-                data['user_height'], data['user_weight'], data['user_penis'],
-                data['user_artist_ref'],
-                data['level'], data['total_chats'], data['total_climax_bot'],
-                data['total_climax_user'], data['stamina_bot'], data['stamina_user'],
-                data['in_intimacy_cycle'], data['intimacy_cycle_count'],
-                data['last_climax_time'], data['cooldown_until'],
-                data['weighted_memory_score'], data['weighted_memory_data'],
-                data['emotional_bias'],
-                data['secondary_emotion'], data['secondary_arousal'],
-                data['secondary_emotion_reason'],
-                data['physical_sensation'], data['physical_hunger'],
-                data['physical_thirst'], data['physical_temperature'],
-                data['metadata']
-            )
-        )
+        # =========================================================
+        # DYNAMIC COLUMN LIST - semua field yang diperlukan
+        # =========================================================
+        columns = [
+            'id', 'role', 'sequence', 'status', 'created_at', 'last_updated',
+            'bot_identity', 'user_identity',
+            'bot_name', 'bot_age', 'bot_height', 'bot_weight', 'bot_chest', 'bot_hijab',
+            'user_name', 'user_status', 'user_age', 'user_height', 'user_weight',
+            'user_penis', 'user_artist_ref',
+            'level', 'total_chats', 'total_climax_bot', 'total_climax_user',
+            'stamina_bot', 'stamina_user',
+            'in_intimacy_cycle', 'intimacy_cycle_count',
+            'last_climax_time', 'cooldown_until',
+            'weighted_memory_score', 'weighted_memory_data', 'emotional_bias',
+            'secondary_emotion', 'secondary_arousal', 'secondary_emotion_reason',
+            'physical_sensation', 'physical_hunger', 'physical_thirst', 'physical_temperature',
+            'metadata'
+        ]
+        
+        # Ambil values sesuai urutan columns
+        values = [data.get(col) for col in columns]
+        
+        # Buat placeholder
+        placeholders = ', '.join(['?' for _ in columns])
+        columns_str = ', '.join(columns)
+        
+        # Execute query
+        query = f"INSERT INTO registrations ({columns_str}) VALUES ({placeholders})"
+        
+        await db.execute(query, tuple(values))
         
         logger.info(f"✅ Created registration: {registration.id}")
         return registration.id
@@ -140,51 +133,41 @@ class Repository:
         return registrations
     
     async def update_registration(self, registration: Registration):
-        """Update registrasi"""
+        """Update registrasi - DYNAMIC UPDATE"""
         db = await self._get_db()
         data = registration.to_dict()
         
         registration.last_updated = time.time()
         
-        await db.execute(
-            """
-            UPDATE registrations SET
-                status = ?, last_updated = ?,
-                bot_identity = ?, user_identity = ?,
-                bot_name = ?, bot_age = ?, bot_height = ?, bot_weight = ?, bot_chest = ?, bot_hijab = ?,
-                user_name = ?, user_status = ?, user_age = ?, user_height = ?, user_weight = ?,
-                user_penis = ?, user_artist_ref = ?,
-                level = ?, total_chats = ?, total_climax_bot = ?, total_climax_user = ?,
-                stamina_bot = ?, stamina_user = ?,
-                in_intimacy_cycle = ?, intimacy_cycle_count = ?,
-                last_climax_time = ?, cooldown_until = ?,
-                weighted_memory_score = ?, weighted_memory_data = ?, emotional_bias = ?,
-                secondary_emotion = ?, secondary_arousal = ?, secondary_emotion_reason = ?,
-                physical_sensation = ?, physical_hunger = ?, physical_thirst = ?, physical_temperature = ?,
-                metadata = ?
-            WHERE id = ?
-            """,
-            (
-                data['status'], registration.last_updated,
-                data['bot_identity'], data['user_identity'],
-                data['bot_name'], data['bot_age'], data['bot_height'],
-                data['bot_weight'], data['bot_chest'], data['bot_hijab'],
-                data['user_name'], data['user_status'], data['user_age'],
-                data['user_height'], data['user_weight'], data['user_penis'],
-                data['user_artist_ref'],
-                data['level'], data['total_chats'], data['total_climax_bot'],
-                data['total_climax_user'], data['stamina_bot'], data['stamina_user'],
-                data['in_intimacy_cycle'], data['intimacy_cycle_count'],
-                data['last_climax_time'], data['cooldown_until'],
-                data['weighted_memory_score'], data['weighted_memory_data'],
-                data['emotional_bias'],
-                data['secondary_emotion'], data['secondary_arousal'],
-                data['secondary_emotion_reason'],
-                data['physical_sensation'], data['physical_hunger'],
-                data['physical_thirst'], data['physical_temperature'],
-                data['metadata'], registration.id
-            )
-        )
+        # =========================================================
+        # DYNAMIC UPDATE - semua field kecuali id
+        # =========================================================
+        update_fields = [
+            'status', 'last_updated',
+            'bot_identity', 'user_identity',
+            'bot_name', 'bot_age', 'bot_height', 'bot_weight', 'bot_chest', 'bot_hijab',
+            'user_name', 'user_status', 'user_age', 'user_height', 'user_weight',
+            'user_penis', 'user_artist_ref',
+            'level', 'total_chats', 'total_climax_bot', 'total_climax_user',
+            'stamina_bot', 'stamina_user',
+            'in_intimacy_cycle', 'intimacy_cycle_count',
+            'last_climax_time', 'cooldown_until',
+            'weighted_memory_score', 'weighted_memory_data', 'emotional_bias',
+            'secondary_emotion', 'secondary_arousal', 'secondary_emotion_reason',
+            'physical_sensation', 'physical_hunger', 'physical_thirst', 'physical_temperature',
+            'metadata'
+        ]
+        
+        # Ambil values
+        values = [data.get(field) for field in update_fields]
+        values.append(registration.id)  # WHERE clause
+        
+        # Buat SET clause
+        set_clause = ', '.join([f"{field} = ?" for field in update_fields])
+        
+        query = f"UPDATE registrations SET {set_clause} WHERE id = ?"
+        
+        await db.execute(query, tuple(values))
     
     async def close_registration(self, registration_id: str):
         """Tutup registrasi (close session)"""
@@ -219,18 +202,14 @@ class Repository:
         db = await self._get_db()
         data = item.to_dict()
         
-        await db.execute(
-            """
-            INSERT INTO working_memory
-            (registration_id, chat_index, timestamp, user_message, bot_response, context)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                data['registration_id'], data['chat_index'],
-                data['timestamp'], data['user_message'],
-                data['bot_response'], data['context']
-            )
-        )
+        columns = ['registration_id', 'chat_index', 'timestamp', 'user_message', 'bot_response', 'context']
+        values = [data.get(col) for col in columns]
+        placeholders = ', '.join(['?' for _ in columns])
+        columns_str = ', '.join(columns)
+        
+        query = f"INSERT INTO working_memory ({columns_str}) VALUES ({placeholders})"
+        
+        await db.execute(query, tuple(values))
     
     async def get_working_memory(self, registration_id: str, limit: int = 1000) -> List[Dict]:
         """Dapatkan working memory (chat terakhir)"""
@@ -309,18 +288,18 @@ class Repository:
         """Tambah item ke long-term memory"""
         db = await self._get_db()
         
-        await db.execute(
-            """
-            INSERT INTO long_term_memory
-            (registration_id, memory_type, content, importance, timestamp, status, emotional_tag, metadata)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                registration_id, memory_type, content, importance,
-                time.time(), status, emotional_tag,
-                json.dumps(metadata or {})
-            )
-        )
+        columns = ['registration_id', 'memory_type', 'content', 'importance', 'timestamp', 'status', 'emotional_tag', 'metadata']
+        values = [
+            registration_id, memory_type, content, importance,
+            time.time(), status, emotional_tag,
+            json.dumps(metadata or {})
+        ]
+        placeholders = ', '.join(['?' for _ in columns])
+        columns_str = ', '.join(columns)
+        
+        query = f"INSERT INTO long_term_memory ({columns_str}) VALUES ({placeholders})"
+        
+        await db.execute(query, tuple(values))
     
     async def get_long_term_memory(
         self,
@@ -382,62 +361,44 @@ class Repository:
         )
         
         if existing:
-            await db.execute(
-                """
-                UPDATE state_tracker SET
-                    location_bot = ?, location_user = ?, position_bot = ?,
-                    position_user = ?, position_relative = ?,
-                    clothing_bot_outer = ?, clothing_bot_outer_bottom = ?,
-                    clothing_bot_inner_top = ?, clothing_bot_inner_bottom = ?,
-                    clothing_user_outer = ?, clothing_user_outer_bottom = ?,
-                    clothing_user_inner_bottom = ?, clothing_history = ?,
-                    family_status = ?, family_location = ?, family_activity = ?,
-                    family_estimate_return = ?,
-                    activity_bot = ?, activity_user = ?,
-                    current_time = ?, time_override_history = ?,
-                    updated_at = ?
-                WHERE registration_id = ?
-                """,
-                (
-                    data['location_bot'], data['location_user'],
-                    data['position_bot'], data['position_user'], data['position_relative'],
-                    data['clothing_bot_outer'], data['clothing_bot_outer_bottom'],
-                    data['clothing_bot_inner_top'], data['clothing_bot_inner_bottom'],
-                    data['clothing_user_outer'], data['clothing_user_outer_bottom'],
-                    data['clothing_user_inner_bottom'], data['clothing_history'],
-                    data['family_status'], data['family_location'], data['family_activity'],
-                    data['family_estimate_return'],
-                    data['activity_bot'], data['activity_user'],
-                    data['current_time'], data['time_override_history'],
-                    data['updated_at'], state.registration_id
-                )
-            )
+            # DYNAMIC UPDATE
+            update_fields = [
+                'location_bot', 'location_user', 'position_bot', 'position_user', 'position_relative',
+                'clothing_bot_outer', 'clothing_bot_outer_bottom', 'clothing_bot_inner_top',
+                'clothing_bot_inner_bottom', 'clothing_user_outer', 'clothing_user_outer_bottom',
+                'clothing_user_inner_bottom', 'clothing_history',
+                'family_status', 'family_location', 'family_activity', 'family_estimate_return',
+                'activity_bot', 'activity_user', 'current_time', 'time_override_history',
+                'updated_at'
+            ]
+            
+            values = [data.get(field) for field in update_fields]
+            values.append(state.registration_id)
+            
+            set_clause = ', '.join([f"{field} = ?" for field in update_fields])
+            query = f"UPDATE state_tracker SET {set_clause} WHERE registration_id = ?"
+            
+            await db.execute(query, tuple(values))
         else:
-            await db.execute(
-                """
-                INSERT INTO state_tracker (
-                    registration_id, location_bot, location_user, position_bot,
-                    position_user, position_relative, clothing_bot_outer,
-                    clothing_bot_outer_bottom, clothing_bot_inner_top,
-                    clothing_bot_inner_bottom, clothing_user_outer,
-                    clothing_user_outer_bottom, clothing_user_inner_bottom,
-                    clothing_history, family_status, family_location,
-                    family_activity, family_estimate_return, activity_bot,
-                    activity_user, current_time, time_override_history, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    state.registration_id, data['location_bot'], data['location_user'],
-                    data['position_bot'], data['position_user'], data['position_relative'],
-                    data['clothing_bot_outer'], data['clothing_bot_outer_bottom'],
-                    data['clothing_bot_inner_top'], data['clothing_bot_inner_bottom'],
-                    data['clothing_user_outer'], data['clothing_user_outer_bottom'],
-                    data['clothing_user_inner_bottom'], data['clothing_history'],
-                    data['family_status'], data['family_location'], data['family_activity'],
-                    data['family_estimate_return'], data['activity_bot'], data['activity_user'],
-                    data['current_time'], data['time_override_history'], data['updated_at']
-                )
-            )
+            # DYNAMIC INSERT
+            columns = [
+                'registration_id', 'location_bot', 'location_user', 'position_bot',
+                'position_user', 'position_relative', 'clothing_bot_outer',
+                'clothing_bot_outer_bottom', 'clothing_bot_inner_top',
+                'clothing_bot_inner_bottom', 'clothing_user_outer',
+                'clothing_user_outer_bottom', 'clothing_user_inner_bottom',
+                'clothing_history', 'family_status', 'family_location',
+                'family_activity', 'family_estimate_return', 'activity_bot',
+                'activity_user', 'current_time', 'time_override_history', 'updated_at'
+            ]
+            
+            values = [data.get(col) for col in columns]
+            placeholders = ', '.join(['?' for _ in columns])
+            columns_str = ', '.join(columns)
+            
+            query = f"INSERT INTO state_tracker ({columns_str}) VALUES ({placeholders})"
+            
+            await db.execute(query, tuple(values))
         
         logger.debug(f"State saved for {state.registration_id}")
     
@@ -464,16 +425,14 @@ class Repository:
         db = await self._get_db()
         data = backup.to_dict()
         
-        result = await db.execute(
-            """
-            INSERT INTO backups (filename, size, created_at, type, status, metadata)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                data['filename'], data['size'], data['created_at'],
-                data['type'], data['status'], data['metadata']
-            )
-        )
+        columns = ['filename', 'size', 'created_at', 'type', 'status', 'metadata']
+        values = [data.get(col) for col in columns]
+        placeholders = ', '.join(['?' for _ in columns])
+        columns_str = ', '.join(columns)
+        
+        query = f"INSERT INTO backups ({columns_str}) VALUES ({placeholders})"
+        
+        result = await db.execute(query, tuple(values))
         
         return result.lastrowid
     
@@ -517,6 +476,7 @@ class Repository:
         )
         stats['total_chats_all_time'] = total_chats['total'] if total_chats and total_chats['total'] else 0
         
+        from config import settings
         db_path = settings.database.path
         if db_path.exists():
             stats['db_size_mb'] = round(db_path.stat().st_size / (1024 * 1024), 2)
