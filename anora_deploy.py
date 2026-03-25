@@ -121,7 +121,7 @@ class RoleplayState:
 _roleplay = RoleplayState()
 
 
-def get_roleplay_response(user_message: str, anora) -> str:
+def RoleplayAI(user_message: str, anora) -> str:
     """Generate response untuk mode roleplay - AI generate, bukan template"""
     global _roleplay
     
@@ -448,7 +448,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         anora = get_anora()
         anora.update_sayang(1, f"Mas chat: {pesan[:30]}")
         
-        respons = get_roleplay_response(pesan, anora)
+        respons = RoleplayAI(pesan, anora)
         await update.message.reply_text(respons, parse_mode='HTML')
         
         await save_anora_state()
