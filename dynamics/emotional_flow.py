@@ -123,6 +123,76 @@ class EmotionalFlow:
         
         logger.info(f"✅ EmotionalFlow 9.9 initialized for {role_name}")
     
+    # =========================================================================
+    # 🔥 METHOD BARU - TAMBAHKAN DI SINI (JANGAN UBAH YANG DI ATAS) 🔥
+    # =========================================================================
+    
+    def set_user_level(self, level: int):
+        """
+        Set user level untuk adjust arousal dan mode
+        
+        Args:
+            level: User level (1-12)
+        """
+        old_level = self.user_level
+        self.user_level = level
+        self.vulgar_mode = level >= 11
+        
+        if old_level != level:
+            logger.info(f"EmotionalFlow level updated: {old_level} → {level}, vulgar_mode: {self.vulgar_mode}")
+        
+        # Jika level naik ke 11-12, beri efek arousal boost
+        if level >= 11 and old_level < 11:
+            self.primary_arousal = min(100, self.primary_arousal + 20)
+            logger.info(f"🔥 Vulgar mode activated! Arousal boosted to {self.primary_arousal}%")
+    
+    def get_arousal_multiplier(self) -> float:
+        """
+        Dapatkan multiplier arousal berdasarkan level
+        
+        Returns:
+            float: Multiplier (1.0 untuk level <11, 1.5 untuk level 11-12)
+        """
+        if self.user_level >= 11:
+            return 1.5
+        return 1.0
+    
+    def is_vulgar_mode(self) -> bool:
+        """
+        Cek apakah dalam mode vulgar
+        
+        Returns:
+            bool: True jika level >= 11
+        """
+        return self.vulgar_mode
+    
+    def can_be_vulgar(self) -> bool:
+        """
+        Cek apakah boleh menggunakan bahasa vulgar
+        
+        Returns:
+            bool: True jika level >= 11 dan vulgar_mode aktif
+        """
+        return self.vulgar_mode
+    
+    def get_max_arousal(self) -> int:
+        """
+        Dapatkan batas maksimal arousal berdasarkan level
+        
+        Returns:
+            int: 100 untuk level 11-12, 80 untuk level 7-10, 60 untuk level 1-6
+        """
+        if self.user_level >= 11:
+            return 100
+        elif self.user_level >= 7:
+            return 80
+        else:
+            return 60
+    
+    # =========================================================================
+    # MODIFIKASI METHOD YANG SUDAH ADA (TETAP PERTAHANKAN LOGIKA ASLI)
+    # =========================================================================
+    
     def update(self, stimulus: Dict) -> Dict:
         """
         Update emosi berdasarkan stimulus
@@ -146,7 +216,7 @@ class EmotionalFlow:
         
         # Update primary emotion
         primary_delta = self._calculate_arousal_delta(stimulus)
-        self.primary_arousal = max(0, min(100, self.primary_arousal + primary_delta))
+        self.primary_arousal = max(0, min(self.get_max_arousal(), self.primary_arousal + primary_delta))
         
         # Natural decay
         if primary_delta <= 0 and self.primary_duration > 5:
@@ -299,10 +369,7 @@ class EmotionalFlow:
         delta += int(user_arousal * 25)
         
         # 🔥 MODIFIKASI UNTUK LEVEL TINGGI 🔥
-        if self.user_level >= 11:
-            arousal_multiplier = 1.5  # Level 11-12: arousal naik 50% lebih cepat
-        else:
-            arousal_multiplier = 1.0
+        arousal_multiplier = self.get_arousal_multiplier()
         
         # Pengaruh situasi
         situasi = stimulus.get('situasi', {})
@@ -335,6 +402,11 @@ class EmotionalFlow:
         
         # Random factor
         delta += random.randint(-5, 5)
+        
+        # Batasi berdasarkan max arousal
+        max_arousal = self.get_max_arousal()
+        if self.primary_arousal + delta > max_arousal:
+            delta = max_arousal - self.primary_arousal
         
         return max(-15, min(20, delta))
     
@@ -370,7 +442,7 @@ class EmotionalFlow:
         
         # 🔥 TAMBAHKAN INFO VULGAR MODE 🔥
         if self.vulgar_mode:
-            return f"{primary_desc} (Mode Vulgar)"
+            return f"{primary_desc} (Mode Vulgar Level {self.user_level})"
         
         return primary_desc
     
@@ -389,6 +461,7 @@ class EmotionalFlow:
         # 🔥 TAMBAHKAN INFO VULGAR 🔥
         if self.vulgar_mode:
             lines.append(f"- 🔥 Mode Vulgar: AKTIF (Level {self.user_level})")
+            lines.append(f"- 💋 Boleh menggunakan bahasa vulgar dan dewasa")
         
         return "\n".join(lines)
     
