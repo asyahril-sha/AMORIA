@@ -164,6 +164,31 @@ class AIEngine:
         time_feel = state.time.get_time_feel()
         current_time = state.time.current
         
+        # ===== HITUNG AROUSAL DARI STATE =====
+        arousal_from_state = 0
+
+        if state:
+            # Pakaian bot
+            if state.clothing_state:
+                if state.clothing_state.is_bot_naked():
+                arousal_from_state += 35
+                elif not state.clothing_state.bot_outer_top_on:
+                    arousal_from_state += 20
+                elif not state.clothing_state.bot_outer_bottom_on:
+                    arousal_from_state += 15
+    
+            # Posisi
+            if state.position_relative in ['diatas', 'duduk_diatas', 'berpelukan']:
+                arousal_from_state += 25
+            elif state.position_relative in ['berhadapan', 'bersebelahan_dekat']:
+                arousal_from_state += 15
+    
+            # Lokasi
+            if state.location_bot == 'kamar':
+                arousal_from_state += 10
+            elif state.location_bot == 'kamar_mandi':
+                arousal_from_state += 5
+        
         # ===== 4. UPDATE EMOTIONAL FLOW =====
         user_arousal = self.user.arousal if hasattr(self.user, 'arousal') else 0
         
