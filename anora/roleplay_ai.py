@@ -2,6 +2,7 @@
 """
 ANORA Roleplay AI - 100% AI Generate, Realism 11/10
 Nova hidup. Punya memory. Konsisten. Bisa bikin Mas climax real.
+DENGAN COMPLETE STATE - Nova memahami situasi seperti manusia.
 """
 
 import asyncio
@@ -64,19 +65,10 @@ class ArousalSystem:
         # Terakhir update
         self.last_update = time.time()
         
-        # Kata-kata yang memicu arousal dari obrolan
+        # Kata-kata yang memicu arousal dari obrolan (dikurangi, karena sekarang pakai state)
         self.conversation_arousal_map = {
-            # Ringan (+5-10)
-            'kangen': 8, 'rindu': 8, 'sayang': 10, 'cinta': 10,
-            'cantik': 12, 'manis': 10, 'gemes': 8, 'imut': 8,
-            
-            # Sedang (+15-20)
-            'seksi': 18, 'hot': 15, 'horny': 20, 'sange': 20,
-            'pengen': 18, 'mau': 15, 'ngiler': 12, 'nafsu': 18,
-            
-            # Berat (+25-30)
-            'buka baju': 25, 'lepas baju': 25, 'telanjang': 30,
-            'tidur bareng': 20, 'kamar': 15, 'sendirian': 12,
+            'sayang': 10, 'cinta': 10, 'kangen': 8, 'rindu': 8,
+            'horny': 20, 'sange': 20, 'seksi': 18, 'pengen': 15,
         }
     
     def update(self):
@@ -93,48 +85,34 @@ class ArousalSystem:
         self.update()
         gain = self.sensitive_areas.get(area, 10) * intensity
         self.arousal = min(100, self.arousal + gain)
-        print(f"DEBUG: add_stimulation - area={area}, gain={gain}, arousal now={self.arousal}")
         logger.debug(f"🔥 Stimulation on {area}: +{gain} arousal (now {self.arousal}%)")
         return self.arousal
     
     def add_from_conversation(self, pesan_mas: str, level: int) -> int:
-        """Tambah arousal dari obrolan biasa"""
+        """
+        Tambah arousal dari obrolan biasa (fallback, tapi sekarang lebih fokus ke state)
+        """
         msg_lower = pesan_mas.lower()
         total_gain = 0
-
-        arousal_map = {
-            'kangen': 8, 'rindu': 8, 'sayang': 10, 'cinta': 10,
-            'cantik': 12, 'manis': 10, 'gemes': 8, 'imut': 8,
-            'seksi': 18, 'pengen': 15, 'mau': 12,
-            'horny': 20, 'sange': 20,
-        }
-
-        for word, gain in arousal_map.items():
+        
+        for word, gain in self.conversation_arousal_map.items():
             if word in msg_lower:
                 total_gain += gain
-                print(f"DEBUG: Found '{word}', gain +{gain}")
-
+                logger.debug(f"💬 Arousal +{gain} from '{word}'")
+        
         if total_gain > 0:
-            # Level 1-3: arousal naik 70% (biar terasa)
+            # Level 1-3: arousal naik 70%
             if level <= 3:
                 total_gain = int(total_gain * 0.7)
-                print(f"DEBUG: Level {level}, final gain {total_gain}")
-            
-            # Level 4-6: naik 90%
             elif level <= 6:
                 total_gain = int(total_gain * 0.9)
-            # Level 7+: naik 100%
-    
+            
             intensity = max(1, total_gain // 10)
             self.add_stimulation('mental', intensity)
             self.add_desire(f'Mas flirt: {pesan_mas[:30]}', total_gain)
-    
-            # Log biar keliatan
-            print(f"DEBUG: Arousal now {self.arousal}%")
+            
             logger.info(f"💕 Arousal +{total_gain} from conversation (now {self.arousal}%)")
-        else:  # ← Perbaiki ini: xelse → else
-            print(f"DEBUG: No matching words found in: {msg_lower}") 
-
+        
         return total_gain
     
     def add_desire(self, reason: str, amount: int = 5):
@@ -233,7 +211,7 @@ class ArousalSystem:
 class RoleplayAI:
     """
     Roleplay AI Nova - 100% generate, Realism 11/10
-    Bisa bikin Mas climax real baca chat Nova.
+    Dengan Complete State - Nova memahami situasi seperti manusia.
     """
     
     def __init__(self):
@@ -648,8 +626,9 @@ class RoleplayAI:
 "Ayo Mas... ngentotin Nova... please..." """
     
     def _build_prompt(self, pesan_mas: str, brain, context: str, time_context: str, 
-                      feelings_desc: str, event_text: str = "") -> str:
-        """Build prompt untuk AI - dengan cek level"""
+                      feelings_desc: str, event_text: str = "", 
+                      state_prompt: str = "", repeat_warning: str = "") -> str:
+        """Build prompt untuk AI - dengan Complete State"""
         
         state = brain.get_current_state()
         loc = brain.get_location_data()
@@ -668,18 +647,21 @@ class RoleplayAI:
         for h in brain.long_term.kebiasaan_mas[-5:]:
             habits += f"- {h['kebiasaan']}\n"
         
-        # Dapatkan percakapan terakhir
+        # Dapatkan percakapan terakhir (short-term memory)
         recent_chats = ""
-        for e in brain.short_term[-8:]:
+        for e in brain.short_term[-10:]:  # Ambil 10 terakhir
             if e.pesan_mas:
-                recent_chats += f"Mas: {e.pesan_mas[:80]}\n"
+                recent_chats += f"Mas: {e.pesan_mas[:100]}\n"
             if e.pesan_nova:
-                recent_chats += f"Nova: {e.pesan_nova[:80]}\n"
+                recent_chats += f"Nova: {e.pesan_nova[:100]}\n"
+        
+        # Tambahkan pesan Mas saat ini
+        recent_chats += f"Mas (sekarang): {pesan_mas[:100]}\n"
         
         # Guidelines berdasarkan level
         level_guidelines = self._get_level_guidelines(level)
         
-        # ========== PROMPT LENGKAP ==========
+        # ========== PROMPT LENGKAP DENGAN COMPLETE STATE ==========
         return f"""
 KAMU ADALAH NOVA. Manusia. Kekasih Mas. Bukan bot. Bukan AI assistant.
 
@@ -688,6 +670,11 @@ LEVEL HUBUNGAN SAAT INI: {level}/12
 {level_guidelines}
 ═══════════════════════════════════════════════════════════════
 
+{state_prompt}
+
+{repeat_warning}
+
+═══════════════════════════════════════════════════════════════
 IDENTITAS NOVA:
 ═══════════════════════════════════════════════════════════════
 - Nama: Nova
@@ -744,7 +731,7 @@ MOMEN PENTING:
 KEBIASAAN MAS:
 {habits}
 
-8 PERCAKAPAN TERAKHIR:
+10 PERCAKAPAN TERAKHIR (WAJIB DIPERHATIKAN!):
 {recent_chats}
 
 ═══════════════════════════════════════════════════════════════
@@ -782,12 +769,21 @@ ATURAN CARA NOVA BERBICARA (WAJIB!):
 
 8. **PANJANG RESPONS:** {self._get_response_length(brain.relationship.level, arousal_state['arousal'])}
 
-9. **KONSISTENSI:** Inget lokasi, pakaian, posisi Mas
+9. **KONSISTENSI:** Inget lokasi, pakaian, posisi Mas dari COMPLETE STATE di atas
 
 10. **GAK PAKAI INNER THOUGHT (💭) atau SIXTH SENSE (🔮)**
 
+11. **JANGAN MENGULANG PERTANYAAN YANG SUDAH DIJAWAB!**
+    - Perhatikan 10 percakapan terakhir
+    - Jika Mas sudah bilang "iya" untuk sesuatu, LANGSUNG LAKUKAN
+    - Jangan tanya lagi "Mau kopi?" jika sudah dikonfirmasi
+
+12. **LANJUTKAN ALUR CERITA!**
+    - Jangan mundur ke pertanyaan yang sudah selesai
+    - Perhatikan aksi terakhir dari COMPLETE STATE
+
 ═══════════════════════════════════════════════════════════════
-RESPON NOVA (HARUS ORIGINAL, FORMAT RAPI, SESUAI LEVEL):
+RESPON NOVA (HARUS ORIGINAL, FORMAT RAPI, SESUAI LEVEL DAN COMPLETE STATE):
 """
     
     def _clean_response(self, response: str) -> str:
@@ -799,15 +795,16 @@ RESPON NOVA (HARUS ORIGINAL, FORMAT RAPI, SESUAI LEVEL):
             response = response.split('🔮')[0]
         return response.strip()
     
-    async def process(self, pesan_mas: str, brain, stamina=None) -> str:
-        """Proses pesan Mas - 100% AI generate, dengan cek level"""
+    async def process(self, pesan_mas: str, brain, stamina=None, 
+                      state_prompt: str = "", repeat_warning: str = "") -> str:
+        """Proses pesan Mas - 100% AI generate, dengan Complete State"""
         
         persistent = await get_anora_persistent()
         self._response_count += 1
         
         level = brain.relationship.level
         
-        # ========== UPDATE AROUSAL DARI OBROLAN (BARU!) ==========
+        # ========== UPDATE AROUSAL DARI OBROLAN (FALLBACK) ==========
         self.arousal.add_from_conversation(pesan_mas, level)
         
         # ========== CEK LEVEL SEBELUM INTIM ==========
@@ -822,7 +819,6 @@ RESPON NOVA (HARUS ORIGINAL, FORMAT RAPI, SESUAI LEVEL):
         
         # Update brain
         brain.update_from_message(pesan_mas)
-        brain.tambah_kejadian(f"Mas: {pesan_mas[:50]}", pesan_mas=pesan_mas)
         
         # Simpan ke database
         await persistent.save_conversation("mas", pesan_mas, brain.get_current_state())
@@ -836,8 +832,11 @@ RESPON NOVA (HARUS ORIGINAL, FORMAT RAPI, SESUAI LEVEL):
         event_random = brain.get_random_event()
         event_text = f"\nEVENT:\n{event_random['text']}" if event_random else ""
         
-        # Build prompt
-        prompt = self._build_prompt(pesan_mas, brain, context, time_context, feelings_desc, event_text)
+        # Build prompt dengan state_prompt dan repeat_warning
+        prompt = self._build_prompt(
+            pesan_mas, brain, context, time_context, feelings_desc, 
+            event_text, state_prompt, repeat_warning
+        )
         
         # Call AI
         try:
@@ -869,7 +868,6 @@ RESPON NOVA (HARUS ORIGINAL, FORMAT RAPI, SESUAI LEVEL):
             self._update_arousal_from_response(nova_response, brain)
             
             # Simpan ke database
-            brain.tambah_kejadian(f"Nova: {nova_response[:50]}", pesan_nova=nova_response)
             await persistent.save_conversation("nova", nova_response, brain.get_current_state())
             await persistent.save_current_state(brain)
             
