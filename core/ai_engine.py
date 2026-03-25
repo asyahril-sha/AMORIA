@@ -123,6 +123,8 @@ class AIEngine:
         # 🔥 TAMBAHKAN INI UNTUK LEVEL 11-12 🔥
         user_level = self.registration.level
         self.current_user_level = user_level
+        self.emotional_flow.set_user_level(user_level)
+        self.intimacy_cycle.set_user_level(user_level)
         
         # ===== 1. LOAD DATA =====
         working_memory = await self.repo.get_working_memory(
