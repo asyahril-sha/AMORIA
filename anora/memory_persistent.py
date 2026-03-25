@@ -40,6 +40,15 @@ class PersistentMemory:
         """Buat semua tabel memory"""
         self._conn = await aiosqlite.connect(str(self.db_path))
         
+        # ========== TABEL STATE (UTAMA) ==========
+        await self._conn.execute('''
+            CREATE TABLE IF NOT EXISTS anora_state (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at REAL NOT NULL
+            )
+        ''')
+        
         # ========== TABEL TIMELINE (SEMUA KEJADIAN) ==========
         await self._conn.execute('''
             CREATE TABLE IF NOT EXISTS timeline (
@@ -58,7 +67,7 @@ class PersistentMemory:
             )
         ''')
         
-        # ========== TABEL SHORT-TERM MEMORY (SLIDING WINDOW DI DATABASE) ==========
+        # ========== TABEL SHORT-TERM MEMORY (SLIDING WINDOW) ==========
         await self._conn.execute('''
             CREATE TABLE IF NOT EXISTS short_term_memory (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,6 +149,51 @@ class PersistentMemory:
         # Load data ke brain
         await self._load_to_brain()
     
+    async def _init_state(self):
+        """Inisialisasi state awal"""
+        defaults = {
+            'sayang': '50',
+            'rindu': '0',
+            'desire': '0',
+            'arousal': '0',
+            'tension': '0',
+            'level': '1',
+            'energi': '100',
+            'stamina_nova': '100',
+            'stamina_mas': '100'
+        }
+        for key, val in defaults.items():
+            await self._conn.execute(
+                "INSERT OR IGNORE INTO anora_state (key, value, updated_at) VALUES (?, ?, ?)",
+                (key, val, time.time())
+            )
+        await self._conn.commit()
+    
+    # =========================================================================
+    # STATE METHODS (DIPANGGIL OLEH ROLEPLAY_INTEGRATION)
+    # =========================================================================
+    
+    async def get_state(self, key: str) -> Optional[str]:
+        """Dapatkan state berdasarkan key"""
+        cursor = await self._conn.execute("SELECT value FROM anora_state WHERE key = ?", (key,))
+        row = await cursor.fetchone()
+        return row[0] if row else None
+    
+    async def set_state(self, key: str, value: str):
+        """Simpan state ke database"""
+        await self._conn.execute(
+            "INSERT OR REPLACE INTO anora_state (key, value, updated_at) VALUES (?, ?, ?)",
+            (key, value, time.time())
+        )
+        await self._conn.commit()
+        logger.debug(f"💾 State saved: {key}")
+    
+    async def get_all_states(self) -> Dict[str, str]:
+        """Dapatkan semua state dari database"""
+        cursor = await self._conn.execute("SELECT key, value FROM anora_state")
+        rows = await cursor.fetchall()
+        return {row[0]: row[1] for row in rows}
+    
     # =========================================================================
     # LOAD KE BRAIN
     # =========================================================================
@@ -148,13 +202,27 @@ class PersistentMemory:
         """Load semua memory ke brain"""
         brain = get_anora_brain()
         
+        # Load state dari anora_state
+        states = await self.get_all_states()
+        if 'sayang' in states:
+            brain.feelings.sayang = float(states['sayang'])
+        if 'rindu' in states:
+            brain.feelings.rindu = float(states['rindu'])
+        if 'desire' in states:
+            brain.feelings.desire = float(states['desire'])
+        if 'arousal' in states:
+            brain.feelings.arousal = float(states['arousal'])
+        if 'tension' in states:
+            brain.feelings.tension = float(states['tension'])
+        if 'level' in states:
+            brain.relationship.level = int(states['level'])
+        
         # Load timeline (terakhir 100)
         cursor = await self._conn.execute(
             "SELECT * FROM timeline ORDER BY timestamp ASC"
         )
         rows = await cursor.fetchall()
         for row in rows:
-            # Rekonstruksi event
             pakaian_nova = Clothing()
             pakaian_mas = Clothing()
             try:
@@ -184,7 +252,7 @@ class PersistentMemory:
             event.timestamp = row[1]
             brain.timeline.append(event)
         
-        # Load short-term memory (sliding window, ambil 50 terakhir)
+        # Load short-term memory
         cursor = await self._conn.execute(
             "SELECT * FROM short_term_memory ORDER BY timestamp ASC"
         )
@@ -233,10 +301,8 @@ class PersistentMemory:
                 brain.long_term.tambah_kebiasaan(judul)
             elif tipe == 'momen':
                 brain.long_term.tambah_momen(judul, perasaan)
-            elif tipe == 'janji':
-                brain.long_term.tambah_janji(judul)
         
-        # Load current state (terbaru)
+        # Load current state
         cursor = await self._conn.execute(
             "SELECT * FROM current_state ORDER BY updated_at DESC LIMIT 1"
         )
@@ -255,40 +321,9 @@ class PersistentMemory:
             except:
                 pass
             
-            try:
-                pakaian_mas_dict = json.loads(row[6])
-                for key, val in pakaian_mas_dict.items():
-                    if hasattr(brain.clothing, key):
-                        setattr(brain.clothing, key, val)
-            except:
-                pass
-            
             brain.mood_nova = Mood(row[7]) if row[7] else Mood.NETRAL
-            brain.mood_mas = Mood(row[8]) if row[8] else Mood.NETRAL
-            
-            try:
-                feelings_dict = json.loads(row[9])
-                brain.feelings.sayang = feelings_dict.get('sayang', 50)
-                brain.feelings.rindu = feelings_dict.get('rindu', 0)
-                brain.feelings.desire = feelings_dict.get('desire', 0)
-                brain.feelings.arousal = feelings_dict.get('arousal', 0)
-                brain.feelings.tension = feelings_dict.get('tension', 0)
-            except:
-                pass
-            
-            try:
-                rel_dict = json.loads(row[10])
-                brain.relationship.level = rel_dict.get('level', 1)
-                brain.relationship.intimacy_count = rel_dict.get('intimacy_count', 0)
-                brain.relationship.climax_count = rel_dict.get('climax_count', 0)
-                brain.relationship.first_kiss = rel_dict.get('first_kiss', False)
-                brain.relationship.first_touch = rel_dict.get('first_touch', False)
-                brain.relationship.first_hug = rel_dict.get('first_hug', False)
-                brain.relationship.first_intim = rel_dict.get('first_intim', False)
-            except:
-                pass
         
-        logger.info(f"📀 Loaded to brain: {len(brain.timeline)} timeline, {len(brain.short_term)} short-term, {len(rows)} long-term")
+        logger.info(f"📀 Loaded to brain: {len(brain.timeline)} timeline, {len(brain.short_term)} short-term")
     
     # =========================================================================
     # SAVE FUNCTIONS
@@ -318,11 +353,8 @@ class PersistentMemory:
         await self._conn.commit()
     
     async def save_short_term(self, event: TimelineEvent):
-        """Simpan ke short-term memory (sliding window di database)"""
-        # Hapus yang lama kalo udah lebih dari 50
-        cursor = await self._conn.execute(
-            "SELECT COUNT(*) FROM short_term_memory"
-        )
+        """Simpan ke short-term memory (sliding window)"""
+        cursor = await self._conn.execute("SELECT COUNT(*) FROM short_term_memory")
         count = (await cursor.fetchone())[0]
         
         if count >= 50:
@@ -413,7 +445,6 @@ class PersistentMemory:
     # =========================================================================
     
     async def get_recent_conversations(self, limit: int = 20) -> List[Dict]:
-        """Dapatkan percakapan terakhir"""
         cursor = await self._conn.execute(
             "SELECT * FROM conversation ORDER BY timestamp DESC LIMIT ?",
             (limit,)
@@ -421,17 +452,15 @@ class PersistentMemory:
         rows = await cursor.fetchall()
         return [dict(row) for row in rows][::-1]
     
-    async def get_timeline(self, limit: int = 100, offset: int = 0) -> List[Dict]:
-        """Dapatkan timeline"""
+    async def get_timeline(self, limit: int = 100) -> List[Dict]:
         cursor = await self._conn.execute(
-            "SELECT * FROM timeline ORDER BY timestamp DESC LIMIT ? OFFSET ?",
-            (limit, offset)
+            "SELECT * FROM timeline ORDER BY timestamp DESC LIMIT ?",
+            (limit,)
         )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows][::-1]
     
     async def get_short_term(self) -> List[Dict]:
-        """Dapatkan short-term memory"""
         cursor = await self._conn.execute(
             "SELECT * FROM short_term_memory ORDER BY timestamp ASC"
         )
@@ -439,7 +468,6 @@ class PersistentMemory:
         return [dict(row) for row in rows]
     
     async def get_long_term_memories(self, tipe: str = None) -> List[Dict]:
-        """Dapatkan long-term memory"""
         if tipe:
             cursor = await self._conn.execute(
                 "SELECT * FROM long_term_memory WHERE tipe = ? ORDER BY timestamp DESC",
@@ -452,30 +480,15 @@ class PersistentMemory:
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
     
-    async def get_location_visits(self) -> List[Dict]:
-        """Dapatkan statistik kunjungan lokasi"""
-        cursor = await self._conn.execute(
-            "SELECT * FROM location_visits ORDER BY visit_count DESC"
-        )
-        rows = await cursor.fetchall()
-        return [dict(row) for row in rows]
-    
     async def get_stats(self) -> Dict:
-        """Dapatkan statistik database"""
         stats = {}
-        
         tables = ['timeline', 'short_term_memory', 'long_term_memory', 'conversation', 'location_visits']
         for table in tables:
             cursor = await self._conn.execute(f"SELECT COUNT(*) FROM {table}")
             count = (await cursor.fetchone())[0]
             stats[f"{table}_count"] = count
-        
-        # Ukuran database
         if self.db_path.exists():
             stats['db_size_mb'] = round(self.db_path.stat().st_size / (1024 * 1024), 2)
-        else:
-            stats['db_size_mb'] = 0
-        
         return stats
     
     # =========================================================================
@@ -483,12 +496,8 @@ class PersistentMemory:
     # =========================================================================
     
     async def cleanup_old_short_term(self, keep: int = 50):
-        """Bersihkan short-term memory lama (simpan keep terbaru)"""
-        cursor = await self._conn.execute(
-            "SELECT COUNT(*) FROM short_term_memory"
-        )
+        cursor = await self._conn.execute("SELECT COUNT(*) FROM short_term_memory")
         count = (await cursor.fetchone())[0]
-        
         if count > keep:
             to_delete = count - keep
             await self._conn.execute(
@@ -496,27 +505,13 @@ class PersistentMemory:
                 (to_delete,)
             )
             await self._conn.commit()
-            logger.info(f"🧹 Cleaned up {to_delete} old short-term memories")
-    
-    async def cleanup_old_timeline(self, days: int = 30):
-        """Bersihkan timeline lebih dari days hari"""
-        cutoff = time.time() - (days * 86400)
-        await self._conn.execute(
-            "DELETE FROM timeline WHERE timestamp < ?",
-            (cutoff,)
-        )
-        await self._conn.commit()
-        logger.info(f"🧹 Cleaned up timeline older than {days} days")
     
     async def vacuum(self):
-        """Optimize database"""
         await self._conn.execute("VACUUM")
-        logger.info("🗜️ Database vacuumed")
     
     async def close(self):
         if self._conn:
             await self._conn.close()
-            logger.info("📁 Database connection closed")
 
 
 # =============================================================================
