@@ -3,6 +3,7 @@
 ANORA Persistent Memory - Simpan semua ingatan Nova ke database
 Gak ilang kalo restart. Short-term memory sliding window.
 Long-term memory permanen.
+DENGAN COMPLETE STATE - Semua aspek disimpan ke database.
 """
 
 import time
@@ -29,6 +30,7 @@ class PersistentMemory:
     - Long-term memory: kebiasaan, momen, janji
     - State: lokasi, pakaian, perasaan terakhir
     - Conversation: semua percakapan
+    - COMPLETE STATE: semua aspek Mas, Nova, dan bersama
     """
     
     def __init__(self, db_path: Path = Path("data/anora_memory.db")):
@@ -45,6 +47,17 @@ class PersistentMemory:
             CREATE TABLE IF NOT EXISTS anora_state (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL,
+                updated_at REAL NOT NULL
+            )
+        ''')
+        
+        # ========== TABEL COMPLETE STATE (BARU!) ==========
+        await self._conn.execute('''
+            CREATE TABLE IF NOT EXISTS complete_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                mas_state TEXT NOT NULL,
+                nova_state TEXT NOT NULL,
+                together_state TEXT NOT NULL,
                 updated_at REAL NOT NULL
             )
         ''')
@@ -111,6 +124,7 @@ class PersistentMemory:
                 mood_mas TEXT NOT NULL,
                 feelings TEXT NOT NULL,
                 relationship TEXT NOT NULL,
+                complete_state TEXT,
                 updated_at REAL NOT NULL
             )
         ''')
@@ -144,6 +158,9 @@ class PersistentMemory:
         
         await self._conn.commit()
         
+        # Inisialisasi state awal jika belum ada
+        await self._init_state()
+        
         logger.info(f"💾 ANORA Persistent Memory initialized at {self.db_path}")
         
         # Load data ke brain
@@ -151,6 +168,51 @@ class PersistentMemory:
     
     async def _init_state(self):
         """Inisialisasi state awal"""
+        # Cek apakah tabel complete_state sudah ada isinya
+        cursor = await self._conn.execute("SELECT COUNT(*) FROM complete_state")
+        count = await cursor.fetchone()
+        
+        if count[0] == 0:
+            # Inisialisasi complete_state default
+            default_complete = {
+                'mas': {
+                    'clothing': {'top': 'kaos', 'bottom': 'celana pendek', 'boxer': True, 'last_update': time.time()},
+                    'position': {'state': None, 'detail': None, 'last_update': 0},
+                    'activity': {'main': 'santai', 'detail': None, 'last_update': 0},
+                    'location': {'room': 'kamar', 'detail': None, 'last_update': 0},
+                    'holding': {'object': None, 'detail': None, 'last_update': 0},
+                    'status': {'mood': 'netral', 'need': None, 'last_update': 0}
+                },
+                'nova': {
+                    'clothing': {'hijab': True, 'top': 'daster rumah motif bunga', 'bra': True, 'cd': True, 'last_update': time.time()},
+                    'position': {'state': None, 'detail': None, 'last_update': 0},
+                    'activity': {'main': 'santai', 'detail': None, 'last_update': 0},
+                    'location': {'room': 'kamar', 'detail': None, 'last_update': 0},
+                    'holding': {'object': None, 'detail': None, 'last_update': 0},
+                    'status': {'mood': 'malu-malu', 'need': None, 'last_update': 0}
+                },
+                'together': {
+                    'location': 'kamar',
+                    'distance': None,
+                    'atmosphere': 'santai',
+                    'last_action': None,
+                    'pending_action': None,
+                    'confirmed_topics': [],
+                    'asked_count': 0,
+                    'last_question': '',
+                    'last_update': time.time()
+                }
+            }
+            
+            await self._conn.execute(
+                "INSERT INTO complete_state (id, mas_state, nova_state, together_state, updated_at) VALUES (1, ?, ?, ?, ?)",
+                (json.dumps(default_complete['mas']), json.dumps(default_complete['nova']), 
+                 json.dumps(default_complete['together']), time.time())
+            )
+            await self._conn.commit()
+            logger.info("📀 Complete state initialized")
+        
+        # State default untuk anora_state
         defaults = {
             'sayang': '50',
             'rindu': '0',
@@ -170,7 +232,47 @@ class PersistentMemory:
         await self._conn.commit()
     
     # =========================================================================
-    # STATE METHODS (DIPANGGIL OLEH ROLEPLAY_INTEGRATION)
+    # COMPLETE STATE METHODS (BARU!)
+    # =========================================================================
+    
+    async def save_complete_state(self, brain):
+        """Simpan complete_state ke database"""
+        try:
+            complete = brain.complete_state
+            
+            await self._conn.execute(
+                """INSERT OR REPLACE INTO complete_state 
+                   (id, mas_state, nova_state, together_state, updated_at) 
+                   VALUES (1, ?, ?, ?, ?)""",
+                (json.dumps(complete['mas']), json.dumps(complete['nova']), 
+                 json.dumps(complete['together']), time.time())
+            )
+            await self._conn.commit()
+            logger.debug("💾 Complete state saved to database")
+        except Exception as e:
+            logger.error(f"Error saving complete state: {e}")
+    
+    async def load_complete_state(self, brain) -> bool:
+        """Load complete_state dari database ke brain"""
+        try:
+            cursor = await self._conn.execute(
+                "SELECT mas_state, nova_state, together_state FROM complete_state WHERE id = 1"
+            )
+            row = await cursor.fetchone()
+            
+            if row:
+                brain.complete_state['mas'] = json.loads(row[0])
+                brain.complete_state['nova'] = json.loads(row[1])
+                brain.complete_state['together'] = json.loads(row[2])
+                logger.info("📀 Complete state loaded from database")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error loading complete state: {e}")
+            return False
+    
+    # =========================================================================
+    # STATE METHODS (PERTAHANKAN + TAMBAH COMPLETE STATE)
     # =========================================================================
     
     async def get_state(self, key: str) -> Optional[str]:
@@ -195,12 +297,15 @@ class PersistentMemory:
         return {row[0]: row[1] for row in rows}
     
     # =========================================================================
-    # LOAD KE BRAIN
+    # LOAD KE BRAIN (PERTAHANKAN + TAMBAH COMPLETE STATE)
     # =========================================================================
     
     async def _load_to_brain(self):
         """Load semua memory ke brain"""
         brain = get_anora_brain()
+        
+        # Load complete state
+        await self.load_complete_state(brain)
         
         # Load state dari anora_state
         states = await self.get_all_states()
@@ -219,7 +324,7 @@ class PersistentMemory:
         
         # Load timeline (terakhir 100)
         cursor = await self._conn.execute(
-            "SELECT * FROM timeline ORDER BY timestamp ASC"
+            "SELECT * FROM timeline ORDER BY timestamp ASC LIMIT 100"
         )
         rows = await cursor.fetchall()
         for row in rows:
@@ -254,7 +359,7 @@ class PersistentMemory:
         
         # Load short-term memory
         cursor = await self._conn.execute(
-            "SELECT * FROM short_term_memory ORDER BY timestamp ASC"
+            "SELECT * FROM short_term_memory ORDER BY timestamp ASC LIMIT 50"
         )
         rows = await cursor.fetchall()
         for row in rows:
@@ -322,11 +427,43 @@ class PersistentMemory:
                 pass
             
             brain.mood_nova = Mood(row[7]) if row[7] else Mood.NETRAL
+            
+            # Load feelings
+            try:
+                feelings_dict = json.loads(row[9])
+                brain.feelings.sayang = feelings_dict.get('sayang', 50)
+                brain.feelings.rindu = feelings_dict.get('rindu', 0)
+                brain.feelings.desire = feelings_dict.get('desire', 0)
+                brain.feelings.arousal = feelings_dict.get('arousal', 0)
+                brain.feelings.tension = feelings_dict.get('tension', 0)
+            except:
+                pass
+            
+            # Load relationship
+            try:
+                rel_dict = json.loads(row[10])
+                brain.relationship.level = rel_dict.get('level', 1)
+                brain.relationship.first_kiss = rel_dict.get('first_kiss', False)
+                brain.relationship.first_touch = rel_dict.get('first_touch', False)
+                brain.relationship.first_hug = rel_dict.get('first_hug', False)
+                brain.relationship.first_intim = rel_dict.get('first_intim', False)
+            except:
+                pass
+            
+            # Load complete state dari row (jika ada)
+            if len(row) > 12 and row[12]:
+                try:
+                    complete_dict = json.loads(row[12])
+                    if complete_dict:
+                        brain.complete_state = complete_dict
+                        logger.info("📀 Complete state loaded from current_state")
+                except:
+                    pass
         
         logger.info(f"📀 Loaded to brain: {len(brain.timeline)} timeline, {len(brain.short_term)} short-term")
     
     # =========================================================================
-    # SAVE FUNCTIONS
+    # SAVE FUNCTIONS (PERTAHANKAN + TAMBAH COMPLETE STATE)
     # =========================================================================
     
     async def save_timeline_event(self, event: TimelineEvent):
@@ -393,13 +530,16 @@ class PersistentMemory:
         logger.info(f"📝 Long-term memory saved: {tipe} - {judul}")
     
     async def save_current_state(self, brain):
-        """Simpan state saat ini"""
+        """Simpan state saat ini (termasuk complete state)"""
+        # Simpan complete state terlebih dahulu
+        await self.save_complete_state(brain)
+        
         await self._conn.execute('''
             INSERT OR REPLACE INTO current_state (
                 id, lokasi_type, lokasi_detail, aktivitas_nova, aktivitas_mas,
                 pakaian_nova, pakaian_mas, mood_nova, mood_mas,
-                feelings, relationship, updated_at
-            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                feelings, relationship, complete_state, updated_at
+            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             brain.location_type.value,
             brain.location_detail.value,
@@ -411,6 +551,7 @@ class PersistentMemory:
             brain.mood_mas.value if hasattr(brain.mood_mas, 'value') else str(brain.mood_mas),
             json.dumps(brain.feelings.to_dict()),
             json.dumps(brain.relationship.to_dict()),
+            json.dumps(brain.complete_state),
             time.time()
         ))
         await self._conn.commit()
@@ -441,7 +582,7 @@ class PersistentMemory:
         await self._conn.commit()
     
     # =========================================================================
-    # GET FUNCTIONS
+    # GET FUNCTIONS (PERTAHANKAN)
     # =========================================================================
     
     async def get_recent_conversations(self, limit: int = 20) -> List[Dict]:
@@ -482,7 +623,7 @@ class PersistentMemory:
     
     async def get_stats(self) -> Dict:
         stats = {}
-        tables = ['timeline', 'short_term_memory', 'long_term_memory', 'conversation', 'location_visits']
+        tables = ['timeline', 'short_term_memory', 'long_term_memory', 'conversation', 'location_visits', 'complete_state']
         for table in tables:
             cursor = await self._conn.execute(f"SELECT COUNT(*) FROM {table}")
             count = (await cursor.fetchone())[0]
@@ -492,7 +633,7 @@ class PersistentMemory:
         return stats
     
     # =========================================================================
-    # CLEANUP & UTILITY
+    # CLEANUP & UTILITY (PERTAHANKAN)
     # =========================================================================
     
     async def cleanup_old_short_term(self, keep: int = 50):
