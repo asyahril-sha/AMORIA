@@ -111,11 +111,14 @@ class ArousalSystem:
         for word, gain in arousal_map.items():
             if word in msg_lower:
                 total_gain += gain
+                print(f"DEBUG: Found '{word}', gain +{gain}")
     
         if total_gain > 0:
             # Level 1-3: arousal naik 70% (biar terasa)
             if level <= 3:
                 total_gain = int(total_gain * 0.7)  # ← Ubah dari 0.3 jadi 0.7
+                print(f"DEBUG: Level {level}, final gain {total_gain}")
+                
             # Level 4-6: naik 90%
             elif level <= 6:
                 total_gain = int(total_gain * 0.9)  # ← Ubah dari 0.6 jadi 0.9
@@ -125,6 +128,7 @@ class ArousalSystem:
             self.add_desire(f'Mas flirt: {pesan_mas[:30]}', total_gain)
         
             # Log biar keliatan
+            print(f"DEBUG: Arousal now {self.arousal}%")
             logger.info(f"💕 Arousal +{total_gain} from conversation (now {self.arousal}%)")
     
         return total_gain
