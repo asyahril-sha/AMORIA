@@ -363,7 +363,11 @@ class EmotionalFlow:
     def _calculate_arousal_delta(self, stimulus: Dict) -> int:
         """Hitung perubahan arousal (0-20)"""
         delta = 0
-        
+
+        # 🔥 TAMBAHKAN DARI STATE 🔥
+        arousal_from_state = stimulus.get('arousal_from_state', 0)
+        delta += arousal_from_state
+    
         # Pengaruh user
         user_arousal = stimulus.get('user_arousal', 0)
         delta += int(user_arousal * 25)
