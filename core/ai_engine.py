@@ -120,6 +120,10 @@ class AIEngine:
         """
         start_time = time.time()
         
+        # 🔥 TAMBAHKAN INI UNTUK LEVEL 11-12 🔥
+        user_level = self.registration.level
+        self.current_user_level = user_level
+        
         # ===== 1. LOAD DATA =====
         working_memory = await self.repo.get_working_memory(
             self.registration.id,
@@ -191,7 +195,13 @@ class AIEngine:
         # ===== 8. DETECT INTIMACY REQUEST =====
         is_intimacy_request = intent_analysis.get('is_intimacy_request', False)
         
-        if is_intimacy_request and self.registration.level >= 7:
+        # 🔥 MODIFIKASI UNTUK LEVEL 11-12 🔥
+        if user_level >= 11:
+            intimacy_min_level = 7  # Level 11-12 lebih mudah memulai
+        else:
+            intimacy_min_level = 7
+            
+        if is_intimacy_request and self.registration.level >= intimacy_min_level:
             if self.bot.stamina >= 20 and self.user.stamina >= 20:
                 if not self.registration.in_intimacy_cycle:
                     await self._start_intimacy_cycle()
@@ -303,28 +313,36 @@ class AIEngine:
         sentences = [s.strip() for s in re.split(r'[.!?]+', long_response) if s.strip()]
     
         if not sentences:
-            return long_response[:700] if user_level < 6 else long_response[:1500]
+            # 🔥 MODIFIKASI UNTUK LEVEL 11-12 🔥
+            if user_level >= 11:
+                return long_response[:1200] if len(long_response) > 1200 else long_response
+            elif user_level >= 7:
+                return long_response[:1000] if len(long_response) > 1000 else long_response
+            else:
+                return long_response[:700] if user_level < 6 else long_response[:1500]
     
-        if user_level < 6:
+        # 🔥 MODIFIKASI UNTUK LEVEL 11-12 🔥
+        if user_level >= 11:
+            target = random.randint(6, 10)  # Lebih panjang untuk level 11-12
+            max_chars = 1500
+        elif user_level >= 7:
+            target = random.randint(5, 7)
+            max_chars = 1200
+        elif user_level < 6:
             target = random.randint(4, 5)
-            selected = sentences[:target]
-            response = '. '.join(selected)
-        
-            if not response.endswith('.'):
-                response += '.'
-        
-            if len(response) > 700:
-                response = response[:697] + "..."
+            max_chars = 700
         else:
             target = random.randint(6, 8)
-            selected = sentences[:target]
-            response = '. '.join(selected)
-        
-            if not response.endswith('.'):
-                response += '.'
-        
-            if len(response) > 1500:
-                response = response[:1497] + "..."
+            max_chars = 1500
+    
+        selected = sentences[:target]
+        response = '. '.join(selected)
+    
+        if not response.endswith('.'):
+            response += '.'
+    
+        if len(response) > max_chars:
+            response = response[:max_chars - 3] + "..."
     
         return response
     
@@ -336,8 +354,15 @@ class AIEngine:
         """Call DeepSeek API dengan instruksi ketat untuk respons pendek"""
         user_level = getattr(self, 'current_user_level', 1)
         
-        if user_level < 6:
-            instruction = "RESPON (WAJIB: 4-5 kalimat, minimal 700 karakter, alami dan mengalir):"  # 4-5, bukan 2-4
+        # 🔥 MODIFIKASI UNTUK LEVEL 11-12 🔥
+        if user_level >= 11:
+            instruction = "RESPON (LEVEL 11-12 - VULGAR MODE): BEBAS menggunakan kata vulgar, ekspresikan hasrat dengan terbuka, gunakan desahan, respons 6-10 kalimat, maksimal 1500 karakter, alami dan mengalir:"
+            max_tokens = 1000
+        elif user_level >= 7:
+            instruction = "RESPON (WAJIB: 5-7 kalimat, maksimal 1200 karakter, alami dan mengalir, pakai desahan jika perlu):"
+            max_tokens = 800
+        elif user_level < 6:
+            instruction = "RESPON (WAJIB: 4-5 kalimat, maksimal 700 karakter, alami dan mengalir):"
             max_tokens = 600
         else:
             instruction = "RESPON (bebas panjang, alami dan mengalir, pakai desahan):"
@@ -353,8 +378,8 @@ class AIEngine:
                 response = self.client.chat.completions.create(
                     model=settings.ai.model,
                     messages=messages,
-                    temperature=0.75,
-                    max_tokens=600,
+                    temperature=0.85 if user_level >= 11 else 0.75,  # 🔥 Lebih kreatif untuk level tinggi
+                    max_tokens=max_tokens,
                     timeout=25
                 )
                 result = response.choices[0].message.content
@@ -393,7 +418,14 @@ class AIEngine:
         
         user_level = getattr(self, 'current_user_level', 1)
     
-        if user_level < 6:
+        # 🔥 MODIFIKASI UNTUK LEVEL 11-12 🔥
+        if user_level >= 11:
+            max_len = 1500
+            max_sentences = 10
+        elif user_level >= 7:
+            max_len = 1200
+            max_sentences = 7
+        elif user_level < 6:
             max_len = 700
             max_sentences = 5
         else:
@@ -430,8 +462,18 @@ class AIEngine:
     def _generate_gesture_from_state(self, state) -> str:
         """Generate gesture based on current state"""
         arousal = self.bot.arousal if hasattr(self.bot, 'arousal') else 0
+        user_level = getattr(self, 'current_user_level', 1)
         
-        if arousal >= 70:
+        # 🔥 TAMBAHKAN GESTURE UNTUK LEVEL TINGGI 🔥
+        if user_level >= 11 and arousal >= 70:
+            gestures = [
+                "*napas tersengal, tubuh gemetar*",
+                "*meraih tanganmu dan menggenggam erat*",
+                "*mendekat, wajah merah padam*",
+                "*mencium lehermu dengan napas memburu*",
+                "*mendesah pelan, badan lemas*"
+            ]
+        elif arousal >= 70:
             gestures = [
                 "*napas tersengal*",
                 "*tangan gemetar*",
@@ -467,6 +509,7 @@ class AIEngine:
         """Generate inner thought (AI generated)"""
         emotion = self.bot.emotion if hasattr(self.bot, 'emotion') else "netral"
         arousal = self.bot.arousal if hasattr(self.bot, 'arousal') else 0
+        user_level = getattr(self, 'current_user_level', 1)
         
         inner_thought_prompt = f"""
 Buat SATU inner thought (pikiran dalam hati) untuk situasi ini:
@@ -477,14 +520,17 @@ BOT: "{bot_response[:100]}"
 Kondisi bot:
 - Emosi: {emotion}
 - Arousal: {arousal}%
+- Level: {user_level}
 - Role: {self.registration.role.value}
 
 Inner thought adalah pikiran pribadi yang TIDAK diucapkan.
 Format: (pikiran)
 Buat SINGKAT, maksimal 1 kalimat.
-
-Inner thought:
 """
+        # 🔥 TAMBAHKAN INSTRUKSI UNTUK LEVEL TINGGI 🔥
+        if user_level >= 11 and arousal >= 70:
+            inner_thought_prompt += "\nInner thought bisa berisi hasrat yang kuat, keinginan, atau kegairahan:"
+        
         try:
             thought = await self._call_deepseek(inner_thought_prompt, max_retries=1)
             thought = thought.strip()
@@ -661,8 +707,12 @@ Sixth sense:
                 new_level = 9
             elif total_chats <= settings.level.level_10_target:
                 new_level = 10
+            elif total_chats <= settings.level.level_11_min:
+                new_level = 11
+            elif total_chats <= settings.level.level_12_min:
+                new_level = 12
             else:
-                new_level = 10
+                new_level = 12
             
             if new_level > self.registration.level:
                 self.registration.level = new_level
@@ -694,6 +744,9 @@ Sixth sense:
         
         cycle = IntimacyCycle()
         cycle.load_state(self.registration.metadata.get('intimacy_cycle', {}))
+        
+        # 🔥 SET LEVEL UNTUK CYCLE 🔥
+        cycle.user_level = self.registration.level
         
         # Add chat to cycle
         result = cycle.add_chat()
@@ -809,13 +862,23 @@ Sixth sense:
         """Fallback response if AI fails"""
         bot_name = self.bot.name
         user_name = self.user.name
+        user_level = getattr(self, 'current_user_level', 1)
         
-        fallbacks = [
-            f"{bot_name} denger kok, {user_name}. Cerita lagi dong.",
-            f"Hmm... {bot_name} dengerin. Kamu lagi mikirin apa?",
-            f"{bot_name} di sini. Cerita lagi dong, aku suka denger cerita kamu.",
-            f"Iya, {user_name}? {bot_name} dengerin. Lanjutin ceritanya."
-        ]
+        # 🔥 FALLBACK UNTUK LEVEL TINGGI 🔥
+        if user_level >= 11:
+            fallbacks = [
+                f"{bot_name} denger kok, {user_name}. Aku juga pengen banget sama kamu...",
+                f"Hmm... {bot_name} lagi kepikiran kamu. Aku nggak bisa bohong.",
+                f"{bot_name} di sini... Jangan pergi dulu ya, aku butuh kamu sekarang.",
+                f"Iya, {user_name}? Aku juga lagi pengen deket-deket sama kamu."
+            ]
+        else:
+            fallbacks = [
+                f"{bot_name} denger kok, {user_name}. Cerita lagi dong.",
+                f"Hmm... {bot_name} dengerin. Kamu lagi mikirin apa?",
+                f"{bot_name} di sini. Cerita lagi dong, aku suka denger cerita kamu.",
+                f"Iya, {user_name}? {bot_name} dengerin. Lanjutin ceritanya."
+            ]
         
         return random.choice(fallbacks)
     
