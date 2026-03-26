@@ -21,7 +21,7 @@ logging.basicConfig(
     format='%(asctime)s | %(levelname)-5s | %(name)s | %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
-logger = logging.getLogger("ANORA99")
+logger = logging.getLogger("ANORA")
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -32,18 +32,18 @@ from config import get_settings
 # IMPORT ANORA 9.9 COMPONENTS
 # =============================================================================
 
-ANORA99_AVAILABLE = False
+ANORA_AVAILABLE = False
 try:
-    from anora99.emotional_engine import get_emotional_engine
-    from anora99.relationship import get_relationship_manager
-    from anora99.conflict_engine import get_conflict_engine
-    from anora99.brain import get_anora_brain_99
-    from anora99.roleplay_ai import get_anora_roleplay_ai_99
-    from anora99.roleplay_integration import get_anora_roleplay_99
-    from anora99.roles.role_manager import get_role_manager_99
-    from anora99.worker import get_anora_worker
-    from anora99.memory_persistent import get_anora_persistent
-    ANORA99_AVAILABLE = True
+    from anora.emotional_engine import get_emotional_engine
+    from anora.relationship import get_relationship_manager
+    from anora.conflict_engine import get_conflict_engine
+    from anora.brain import get_anora_brain
+    from anora.roleplay_ai import get_anora_roleplay_ai
+    from anora.roleplay_integration import get_anora_roleplay
+    from anora.roles.role_manager import get_role_manager
+    from anora.worker import get_anora_worker
+    from anora.memory_persistent import get_anora_persistent
+    ANORA_AVAILABLE = True
     logger.info("✅ ANORA 9.9 modules loaded")
 except ImportError as e:
     logger.warning(f"⚠️ ANORA 9.9 not available: {e}")
@@ -67,7 +67,7 @@ except ImportError as e:
 
 _application = None
 _user_modes: Dict[int, Dict] = {}  # user_id -> {'mode': 'chat'/'roleplay'/'role'/'paused', 'active_role': None, 'previous_mode': None}
-_backup_dir = Path("backups_anora99")
+_backup_dir = Path("backups_anora")
 _backup_dir.mkdir(exist_ok=True)
 
 
@@ -111,7 +111,7 @@ async def anora_start_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     set_user_mode(user_id, 'chat')
     
     # Get initial stats
-    brain = get_anora_brain_99()
+    brain = get_anora_brain()
     emotional = get_emotional_engine()
     relationship = get_relationship_manager()
     
@@ -160,7 +160,7 @@ async def nova_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     set_user_mode(user_id, 'chat')
     
-    brain = get_anora_brain_99()
+    brain = get_anora_brain()
     emotional = get_emotional_engine()
     relationship = get_relationship_manager()
     
@@ -209,7 +209,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id != settings.admin_id:
         return
     
-    brain = get_anora_brain_99()
+    brain = get_anora_brain()
     await update.message.reply_text(brain.format_status(), parse_mode='Markdown')
 
 
@@ -221,7 +221,7 @@ async def flashback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id != settings.admin_id:
         return
     
-    brain = get_anora_brain_99()
+    brain = get_anora_brain()
     
     if brain.long_term.momen_penting:
         momen = brain.long_term.momen_penting[-1]
@@ -256,7 +256,7 @@ async def roleplay_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     set_user_mode(user_id, 'roleplay')
-    roleplay = await get_anora_roleplay_99()
+    roleplay = await get_anora_roleplay()
     intro = await roleplay.start()
     await update.message.reply_text(intro, parse_mode='Markdown')
 
@@ -269,7 +269,7 @@ async def statusrp_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id != settings.admin_id:
         return
     
-    roleplay = await get_anora_roleplay_99()
+    roleplay = await get_anora_roleplay()
     status = await roleplay.get_status()
     await update.message.reply_text(status, parse_mode='HTML')
 
@@ -299,7 +299,7 @@ async def pindah_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    brain = get_anora_brain_99()
+    brain = get_anora_brain()
     tujuan = ' '.join(args)
     result = brain.pindah_lokasi(tujuan)
     
@@ -325,7 +325,7 @@ async def role_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     args = context.args
     if not args:
-        role_manager = get_role_manager_99()
+        role_manager = get_role_manager()
         roles = role_manager.get_all_roles()
         
         menu = "📋 **Role yang tersedia:**\n\n"
@@ -342,7 +342,7 @@ async def role_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if role_id in valid_roles:
         set_user_mode(user_id, 'role', role_id)
-        role_manager = get_role_manager_99()
+        role_manager = get_role_manager()
         respon = role_manager.switch_role(role_id)
         await update.message.reply_text(respon, parse_mode='Markdown')
     else:
@@ -363,7 +363,7 @@ async def back_to_nova(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     set_user_mode(user_id, 'chat')
     
-    roleplay = await get_anora_roleplay_99()
+    roleplay = await get_anora_roleplay()
     if roleplay.is_active:
         await roleplay.stop()
     
@@ -395,13 +395,13 @@ async def pause_session(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Save state before pause
-    if ANORA99_AVAILABLE:
-        roleplay = await get_anora_roleplay_99()
+    if ANORA_AVAILABLE:
+        roleplay = await get_anora_roleplay()
         await roleplay.save_state()
     
     set_user_mode(user_id, 'paused')
     
-    brain = get_anora_brain_99()
+    brain = get_anora_brain()
     emotional = get_emotional_engine()
     relationship = get_relationship_manager()
     
@@ -438,7 +438,7 @@ async def resume_session(update: Update, context: ContextTypes.DEFAULT_TYPE):
     previous_mode = get_previous_mode(user_id) or 'chat'
     set_user_mode(user_id, previous_mode)
     
-    brain = get_anora_brain_99()
+    brain = get_anora_brain()
     emotional = get_emotional_engine()
     relationship = get_relationship_manager()
     
@@ -461,7 +461,7 @@ async def backup_database(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id != settings.admin_id:
         return
     
-    if not ANORA99_AVAILABLE:
+    if not ANORA_AVAILABLE:
         await update.message.reply_text("ANORA 9.9 tidak tersedia.")
         return
     
@@ -474,7 +474,7 @@ async def backup_database(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = _backup_dir / f"anora99_memory_{timestamp}.db"
+        backup_path = _backup_dir / f"anora_memory_{timestamp}.db"
         
         shutil.copy(db_path, backup_path)
         
@@ -504,7 +504,7 @@ async def restore_database(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     args = context.args
     if not args:
-        backups = list(_backup_dir.glob("anora99_memory_*.db"))
+        backups = list(_backup_dir.glob("anora_memory_*.db"))
         backups.sort(reverse=True)
         
         if not backups:
@@ -534,7 +534,7 @@ async def restore_database(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Backup current before restore
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        current_backup = _backup_dir / f"anora99_before_restore_{timestamp}.db"
+        current_backup = _backup_dir / f"anora_before_restore_{timestamp}.db"
         if db_path.exists():
             shutil.copy(db_path, current_backup)
         
@@ -561,7 +561,7 @@ async def list_backup_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     if user_id != settings.admin_id:
         return
     
-    backups = list(_backup_dir.glob("anora99_memory_*.db"))
+    backups = list(_backup_dir.glob("anora_memory_*.db"))
     backups.sort(reverse=True)
     
     if not backups:
@@ -651,8 +651,8 @@ async def anora_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     # Roleplay mode
-    if mode == 'roleplay' and ANORA99_AVAILABLE:
-        roleplay = await get_anora_roleplay_99()
+    if mode == 'roleplay' and ANORA_AVAILABLE:
+        roleplay = await get_anora_roleplay()
         try:
             respons = await roleplay.process(pesan)
             await update.message.reply_text(respons, parse_mode='Markdown')
@@ -665,10 +665,10 @@ async def anora_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     # Role mode (IPAR, Teman Kantor, dll)
-    if mode == 'role' and ANORA99_AVAILABLE:
+    if mode == 'role' and ANORA_AVAILABLE:
         active_role = get_active_role(user_id)
         if active_role:
-            role_manager = get_role_manager_99()
+            role_manager = get_role_manager()
             try:
                 respons = await role_manager.chat(active_role, pesan)
                 await update.message.reply_text(respons, parse_mode='Markdown')
@@ -731,14 +731,14 @@ async def health_handler(request):
         "status": "healthy",
         "bot": "AMORIA + ANORA 9.9",
         "version": "9.9.0",
-        "anora99_available": ANORA99_AVAILABLE,
+        "anora_available": ANORA_AVAILABLE,
         "amoria_available": AMORIA_AVAILABLE,
         "timestamp": datetime.now().isoformat()
     }
     
-    if ANORA99_AVAILABLE:
+    if ANORA_AVAILABLE:
         try:
-            brain = get_anora_brain_99()
+            brain = get_anora_brain()
             emotional = get_emotional_engine()
             relationship = get_relationship_manager()
             conflict = get_conflict_engine()
@@ -796,7 +796,7 @@ async def init_database():
     """Initialize all databases"""
     logger.info("🗄️ Initializing database...")
     
-    if not ANORA99_AVAILABLE:
+    if not ANORA_AVAILABLE:
         logger.warning("⚠️ ANORA 9.9 not available, skipping database init")
         return False
     
@@ -804,11 +804,11 @@ async def init_database():
         persistent = await get_anora_persistent()
         logger.info("✅ ANORA 9.9 persistent memory ready")
         
-        brain = get_anora_brain_99()
+        brain = get_anora_brain()
         await persistent.save_current_state(brain)
         
         # Load role states
-        role_manager = get_role_manager_99()
+        role_manager = get_role_manager()
         await role_manager.load_all(persistent)
         
         return True
@@ -834,8 +834,8 @@ async def main():
     logger.info("=" * 70)
     
     # ========== CHECK ANORA CONFIG ==========
-    if ANORA99_AVAILABLE:
-        anora_cfg = settings.anora99
+    if ANORA_AVAILABLE:
+        anora_cfg = settings.anora
         logger.info(f"📋 ANORA 9.9 Configuration:")
         logger.info(f"   Emotional Engine: {'ON' if anora_cfg.emotional_engine_enabled else 'OFF'}")
         logger.info(f"   Decision Engine: {'ON' if anora_cfg.decision_engine_enabled else 'OFF'}")
@@ -850,8 +850,8 @@ async def main():
         logger.warning("⚠️ Database initialization failed. Continuing without database...")
     
     # ========== INIT BRAIN ==========
-    if ANORA99_AVAILABLE:
-        brain = get_anora_brain_99()
+    if ANORA_AVAILABLE:
+        brain = get_anora_brain()
         emotional = get_emotional_engine()
         relationship = get_relationship_manager()
         conflict = get_conflict_engine()
@@ -862,8 +862,8 @@ async def main():
         logger.info(f"   Sayang: {emotional.sayang:.0f}% | Rindu: {emotional.rindu:.0f}%")
         logger.info(f"   Conflict: {'Active' if conflict.is_in_conflict else 'None'}")
         
-        if settings.anora99.roles_enabled:
-            role_manager = get_role_manager_99()
+        if settings.anora.roles_enabled:
+            role_manager = get_role_manager()
             logger.info(f"🎭 Roles loaded: {[r['nama'] for r in role_manager.get_all_roles()]}")
     
     # ========== CREATE APPLICATION ==========
@@ -873,7 +873,7 @@ async def main():
     # ========== REGISTER HANDLERS ==========
     from telegram.ext import CommandHandler, MessageHandler, filters
     
-    if ANORA99_AVAILABLE:
+    if ANORA_AVAILABLE:
         # ANORA 9.9 handlers
         _application.add_handler(CommandHandler("start", anora_start_command))
         _application.add_handler(CommandHandler("nova", nova_command))
@@ -910,7 +910,7 @@ async def main():
     await _application.start()
     
     # ========== START BACKGROUND WORKERS ==========
-    if ANORA99_AVAILABLE and settings.anora99.worker_enabled:
+    if ANORA_AVAILABLE and settings.anora.worker_enabled:
         worker = get_anora_worker()
         await worker.start(_application, settings.admin_id)
         logger.info("🔄 Background workers started")
@@ -940,7 +940,7 @@ async def main():
     # ========== READY ==========
     logger.info("=" * 70)
     logger.info("💜 AMORIA + ANORA 9.9 is running!")
-    if ANORA99_AVAILABLE:
+    if ANORA_AVAILABLE:
         logger.info("   Kirim /nova untuk panggil Nova")
         logger.info("   Kirim /roleplay untuk mode roleplay")
         logger.info("   Kirim /role ipar untuk main role IPAR")
