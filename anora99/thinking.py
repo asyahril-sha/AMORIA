@@ -19,7 +19,7 @@ from .conflict_engine import get_conflict_engine
 logger = logging.getLogger(__name__)
 
 
-class AnoraThought99:
+class AnoraThought:
     """
     Proses berpikir Nova. Bukan sekadar memilih respons.
     Nova mikir dulu: "Aku lagi ngerasa apa?", "Mas lagi ngomong apa?", "Aku mau jawab gimana?"
@@ -307,14 +307,14 @@ class AnoraThought99:
 # SINGLETON
 # =============================================================================
 
-_anora_thought_99 = None
+_anora_thought = None
 
 
-def get_anora_thought_99() -> AnoraThought99:
-    global _anora_thought_99
-    if _anora_thought_99 is None:
-        _anora_thought_99 = AnoraThought99()
-    return _anora_thought_99
+def get_anora_thought() -> AnoraThought:
+    global _anora_thought
+    if _anora_thought is None:
+        _anora_thought = AnoraThought()
+    return _anora_thought
 
 
-anora_thought_99 = get_anora_thought_99()
+anora_thought = get_anora_thought()
