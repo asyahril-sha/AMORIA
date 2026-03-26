@@ -12,12 +12,12 @@ from .ipar_role import IparRole
 from .teman_kantor_role import TemanKantorRole
 from .pelakor_role import PelakorRole
 from .istri_orang_role import IstriOrangRole
-from ..prompt import get_prompt_builder_99
+from ..prompt import get_prompt_builder
 
 logger = logging.getLogger(__name__)
 
 
-class RoleManager99:
+class RoleManager:
     """
     Manager untuk semua role.
     Menyimpan state setiap role, terpisah dari Nova.
@@ -31,7 +31,7 @@ class RoleManager99:
         # Inisialisasi role
         self._init_roles()
         
-        logger.info("🎭 RoleManager99 initialized")
+        logger.info("🎭 RoleManager initialized")
     
     def _init_roles(self):
         """Inisialisasi semua role"""
@@ -209,14 +209,14 @@ RESPON {role.name}:
 # SINGLETON
 # =============================================================================
 
-_role_manager_99: Optional['RoleManager99'] = None
+_role_manager: Optional['RoleManager'] = None
 
 
-def get_role_manager_99() -> RoleManager99:
-    global _role_manager_99
-    if _role_manager_99 is None:
-        _role_manager_99 = RoleManager99()
-    return _role_manager_99
+def get_role_manager() -> RoleManager:
+    global _role_manager
+    if _role_manager is None:
+        _role_manager = RoleManager()
+    return _role_manager
 
 
-role_manager_99 = get_role_manager_99()
+role_manager = get_role_manager()
