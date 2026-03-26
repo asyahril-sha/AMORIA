@@ -427,21 +427,22 @@ class PersistentMemory:
         """Load relationship state dari database"""
         try:
             cursor = await self._conn.execute(
-                "SELECT phase, level, interaction_count, milestones FROM relationship_state WHERE id = 1"
+                "SELECT phase, level, interaction_count, milestones FROM relationship_state_99 WHERE id = 1"
             )
             row = await cursor.fetchone()
-            
+        
             if row:
                 from .relationship import RelationshipPhase
                 relationship_manager.phase = RelationshipPhase(row[0])
                 relationship_manager.level = row[1]
                 relationship_manager.interaction_count = row[2]
-                
-                milestones = json.loads(row[3])
-                for name, achieved in milestones.items():
+            
+                # Load milestones dari JSON
+                milestones_dict = json.loads(row[3])
+                for name, achieved in milestones_dict.items():
                     if name in relationship_manager.milestones:
                         relationship_manager.milestones[name].achieved = achieved
-                
+            
                 logger.info(f"📀 Relationship state loaded: Phase {relationship_manager.phase.value}, Level {relationship_manager.level}")
                 return True
             return False
