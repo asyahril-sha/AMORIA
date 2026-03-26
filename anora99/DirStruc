@@ -1,0 +1,68 @@
+project-root/
+│
+├── .env                                    # Environment variables (token, api keys, config)
+├── config.py                               # Main configuration (AMORIA + ANORA 9.9)
+├── requirements.txt                        # Python dependencies
+│
+├── anora99/                                # 🆕 ANORA 9.9 MAIN FOLDER
+│   │
+│   ├── __init__.py                         # Package initializer, exports all components
+│   │
+│   ├── # ========== CORE ENGINES ==========
+│   ├── emotional_engine.py                 # 9 emosi, 5 gaya bicara, decay/growth
+│   ├── decision_engine.py                  # Weighted selection, no random
+│   ├── relationship.py                     # 5 fase psikologis, unlock system
+│   ├── conflict_engine.py                  # Cemburu, kecewa, marah, cold war
+│   ├── worker.py                           # Background loops (rindu, conflict, auto save)
+│   │
+│   ├── # ========== MEMORY & BRAIN ==========
+│   ├── brain.py                            # Complete state, short-term memory, integrasi
+│   ├── memory_persistent.py                # Database memory (sqlite) – diadopsi dari 5.5
+│   ├── database.py                         # Database sederhana – diadopsi
+│   │
+│   ├── # ========== INTIMACY & STAMINA ==========
+│   ├── intimacy.py                         # Wrapper intimacy – diadopsi
+│   ├── intimacy_core.py                    # Stamina, arousal, posisi, moans – diadopsi
+│   ├── intimacy_flow.py                    # Flow intim (fase) – diadopsi
+│   │
+│   ├── # ========== LOCATION & PLACES ==========
+│   ├── location_manager.py                 # Manajemen lokasi – diadopsi
+│   ├── places.py                           # Tempat dengan risk/thrill – diadopsi
+│   │
+│   ├── # ========== CHAT & THINKING ==========
+│   ├── chat.py                             # Chat handler sederhana – diadopsi
+│   ├── thinking.py                         # Proses berpikir – diadopsi
+│   │
+│   ├── # ========== AI & PROMPT ==========
+│   ├── roleplay_ai.py                      # AI generator (100% generate)
+│   ├── prompt.py                           # Prompt builder dengan semua engine
+│   ├── roleplay_integration.py             # Integrasi semua sistem roleplay
+│   │
+│   ├── # ========== DEPLOYMENT ==========
+│   ├── anora_deploy.py                     # Telegram bot, webhook, background workers
+│   │
+│   └── # ========== ROLES FOLDER ==========
+│       └── roles/
+│           ├── __init__.py                 # Exports all roles
+│           ├── base_role.py                # Base class dengan semua engine
+│           ├── ipar_role.py                # IPAR (Sari) – flavor unik
+│           ├── teman_kantor_role.py        # Teman Kantor (Dita) – flavor unik
+│           ├── pelakor_role.py             # Pelakor (Vina) – flavor unik
+│           ├── istri_orang_role.py         # Istri Orang (Rina) – flavor unik
+│           └── role_manager.py             # Manager untuk semua role
+│
+├── data/                                   # Database files (auto-created)
+│   ├── amoria.db                           # AMORIA main database
+│   ├── anora99.db                          # ANORA 9.9 database
+│   ├── memory/                             # Memory storage
+│   ├── logs/                               # Log files
+│   ├── sessions/                           # Session storage
+│   └── backups/                            # Backup files (AMORIA)
+│
+├── backups_anora99/                        # ANORA 9.9 backup folder (auto-created)
+│   └── anora99_memory_*.db                 # Backup files
+│
+├── command/                                # AMORIA command modules (existing)
+├── bot/                                    # AMORIA bot handlers (existing)
+│
+└── README.md                               # Project documentation
