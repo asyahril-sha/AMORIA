@@ -294,7 +294,7 @@ class AnoraPlaces:
 """
 
 
-_anora_places: Optional[AnoraPlaces] = None
+_anora_places: Optional['AnoraPlaces'] = None
 
 
 def get_anora_places() -> AnoraPlaces:
@@ -302,3 +302,6 @@ def get_anora_places() -> AnoraPlaces:
     if _anora_places is None:
         _anora_places = AnoraPlaces()
     return _anora_places
+
+
+anora_places = get_anora_places()
