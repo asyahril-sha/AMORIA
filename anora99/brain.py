@@ -19,7 +19,7 @@ from enum import Enum
 
 from .emotional_engine import get_emotional_engine, EmotionalStyle
 from .decision_engine import get_decision_engine, ResponseCategory
-from .relationship import get_relationship_manager, RelationshipPhase, PhaseUnlock
+from anora.relationship import get_relationship_manager
 from .conflict_engine import get_conflict_engine, ConflictType
 
 logger = logging.getLogger(__name__)
