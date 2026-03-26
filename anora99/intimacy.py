@@ -12,6 +12,8 @@ from .intimacy_flow import get_anora_intimacy, anora_intimacy, IntimacyFlow
 from .intimacy_core import (
     IntimacyPhase, StaminaSystem, ArousalSystem,
     PositionDatabase, ClimaxLocationDatabase, MoansDatabase, FlashbackDatabase
+from .emotional_engine import get_emotional_engine
+from .conflict_engine import get_conflict_engine
 )
 
 logger = logging.getLogger(__name__)
@@ -106,6 +108,13 @@ class AnoraIntimacy:
     def from_dict(self, data: Dict):
         """Load dari dict"""
         self.flow.from_dict(data)
+        
+    def sync_with_emotional_engine(self):
+        """Sync arousal & desire dengan emotional engine"""
+        emo = get_emotional_engine()
+        self.arousal_system.arousal = emo.arousal
+        self.arousal_system.desire = emo.desire
+        self.arousal_system.tension = emo.tension
 
 
 # =============================================================================
