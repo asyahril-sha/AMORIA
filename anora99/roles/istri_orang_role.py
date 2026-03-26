@@ -7,7 +7,7 @@ Akses konten berdasarkan level (sama seperti Nova).
 from .base_role import BaseRole
 
 
-class IstriOrangRole(BaseRole9):
+class IstriOrangRole(BaseRole):
     """
     Rina - Istri orang.
     Punya kebutuhan perhatian dan iri ke Nova, tetapi tidak membatasi aksi.
