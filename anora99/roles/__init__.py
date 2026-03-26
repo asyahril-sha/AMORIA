@@ -4,7 +4,7 @@ Semua role (IPAR, Teman Kantor, Pelakor, Istri Orang) dengan akses penuh sesuai 
 sama seperti Nova.
 """
 
-from .base_role import BaseRole99
+from .base_role import BaseRole
 from .ipar_role import IparRole
 from .teman_kantor_role import TemanKantorRole
 from .pelakor_role import PelakorRole
