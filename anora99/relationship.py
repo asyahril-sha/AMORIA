@@ -59,11 +59,20 @@ class PhaseUnlock:
 
 @dataclass
 class Milestone:
-    """Milestone hubungan (first kiss, first touch, dll)"""
-    name: str
-    achieved: bool = False
-    timestamp: float = 0
-    phase: RelationshipPhase = RelationshipPhase.STRANGER
+    def __init__(self, name: str, achieved: bool = False, timestamp: float = 0, phase: RelationshipPhase = RelationshipPhase.STRANGER):
+        self.name = name
+        self.achieved = achieved
+        self.timestamp = timestamp
+        self.phase = phase
+    
+    # TAMBAHKAN METHOD INI
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'achieved': self.achieved,
+            'timestamp': self.timestamp,
+            'phase': self.phase.value
+        }
 
 
 class RelationshipManager:
