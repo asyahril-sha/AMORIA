@@ -31,7 +31,7 @@ class IntimacyPhase(str, Enum):
 # STAMINA SYSTEM
 # =============================================================================
 
-class StaminaSystem99:
+class StaminaSystem:
     """
     Sistem stamina realistis untuk ANORA 9.9.
     - Stamina turun setelah climax
@@ -178,7 +178,7 @@ STAMINA SAAT INI:
 # AROUSAL SYSTEM
 # =============================================================================
 
-class ArousalSystem99:
+class ArousalSystem:
     """
     Sistem arousal dan desire Nova.
     Beda antara gairah fisik (arousal) dan keinginan emosional (desire).
@@ -684,5 +684,5 @@ class FlashbackDatabase:
 # =============================================================================
 
 # Untuk kompatibilitas dengan kode yang masih import dari intimacy_core
-StaminaSystem = StaminaSystem99
-ArousalSystem = ArousalSystem99
+StaminaSystem = StaminaSystem
+ArousalSystem = ArousalSystem
