@@ -17,7 +17,7 @@ from .conflict_engine import get_conflict_engine
 logger = logging.getLogger(__name__)
 
 
-class AnoraChat99:
+class AnoraChat:
     def __init__(self):
         self.anora = get_anora()
         self.emotional = get_emotional_engine()
@@ -264,14 +264,14 @@ class AnoraChat99:
 # SINGLETON
 # =============================================================================
 
-_anora_chat_99: Optional[AnoraChat99] = None
+_anora_chat: Optional[AnoraChat] = None
 
 
-def get_anora_chat_99() -> AnoraChat99:
-    global _anora_chat_99
-    if _anora_chat_99 is None:
-        _anora_chat_99 = AnoraChat99()
-    return _anora_chat_99
+def get_anora_chat() -> AnoraChat:
+    global _anora_chat
+    if _anora_chat is None:
+        _anora_chat = AnoraChat()
+    return _anora_chat
 
 
-anora_chat_99 = get_anora_chat_99()
+anora_chat = get_anora_chat()
