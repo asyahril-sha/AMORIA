@@ -37,7 +37,7 @@ class PersistentMemory:
     - RELATIONSHIP STATE: semua fase dari relationship manager
     """
     
-    def __init__(self, db_path: Path = Path("data/anora.db")):
+    def __init__(self, db_path: Path = Path("data/anora99.db")):
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = None
